@@ -5,8 +5,9 @@
 
 echo "🚀 开始部署网吧数据平台..."
 
-# 配置变量
-PROJECT_DIR="/var/www/netbar_online"
+# 自动检测项目根目录（脚本所在目录）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
 BACKEND_DIR="$PROJECT_DIR/backend"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 LOG_DIR="/var/log/netbar"
@@ -18,7 +19,7 @@ chmod 755 $LOG_DIR
 
 # 1. 部署后端
 echo "📦 部署后端..."
-cd $BACKEND_DIR
+cd $BACKEND_DIR || exit 1
 
 # 安装依赖
 echo "  - 安装依赖..."
@@ -45,7 +46,7 @@ echo "✅ 后端部署完成"
 
 # 2. 部署前端
 echo "📦 部署前端..."
-cd $FRONTEND_DIR
+cd $FRONTEND_DIR || exit 1
 
 # 安装依赖
 echo "  - 安装依赖..."
@@ -67,3 +68,4 @@ echo "  1. 配置 Nginx (参考 nginx.conf.example)"
 echo "  2. 检查 PM2 状态: pm2 status"
 echo "  3. 查看日志: pm2 logs netbar-backend"
 echo "  4. 设置 PM2 开机自启: pm2 startup"
+
