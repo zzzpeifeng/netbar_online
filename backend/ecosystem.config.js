@@ -1,9 +1,15 @@
+const path = require('path');
+const fs = require('fs');
+
+// 自动检测 backend 目录路径
+const backendDir = process.cwd();
+
 module.exports = {
   apps: [
     {
       name: 'netbar-backend',
       script: 'dist/main.js',
-      cwd: '/var/www/netbar_online/backend',
+      cwd: backendDir,
       instances: 1,
       autorestart: true,
       watch: false,
