@@ -6,8 +6,10 @@ async function bootstrap() {
   
   // 启用 CORS，允许前端访问
   app.enableCors({
-    origin: true,  // 允许所有来源（开发环境）
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
   
   // 全局前缀
