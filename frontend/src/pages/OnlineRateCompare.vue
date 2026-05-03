@@ -348,8 +348,11 @@ watch(() => selectedDate.value, (newDate) => {
 })
 
 onMounted(async () => {
-  fetchDates()
-  await initChart()
+  await fetchDates()
+  // 延迟初始化图表，确保 DOM 已渲染
+  setTimeout(() => {
+    initChart()
+  }, 100)
 })
 
 onUnmounted(() => {

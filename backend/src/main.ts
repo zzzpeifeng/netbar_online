@@ -6,7 +6,7 @@ async function bootstrap() {
   
   // 启用 CORS，允许前端访问
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: true,  // 允许所有来源（开发环境）
     credentials: true,
   });
   
