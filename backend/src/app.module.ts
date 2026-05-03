@@ -13,9 +13,18 @@ import { StoreOrderModule } from './store-order/store-order.module';
     // MongoDB 连接（使用环境变量）
     MongooseModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        uri: `mongodb://${config.get('MONGODB_USERNAME')}:${encodeURIComponent(config.get('MONGODB_PASSWORD'))}@${config.get('MONGODB_HOST')}:${config.get('MONGODB_PORT')}/${config.get('MONGODB_DATABASE')}?authSource=${config.get('MONGODB_AUTH_SOURCE')}`,
-      }),
+      useFactory: (config: ConfigService) => {
+        const username = config.get<string>('MONGODB_USERNAME', 'admin');
+        const password = config.get<string>('MONGODB_PASSWORD', '');
+        const host = config.get<string>('MONGODB_HOST', 'localhost');
+        const port = config.get<number>('MONGODB_PORT', 27017);
+        const database = config.get<string>('MONGODB_DATABASE', 'netbar_data');
+        const authSource = config.get<string>('MONGODB_AUTH_SOURCE', 'admin');
+        
+        return {
+          uri: `mongodb://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}?authSource=${authSource}`,
+        };
+      },
     }),
     // 业务模块
     OnlineRateModule,
