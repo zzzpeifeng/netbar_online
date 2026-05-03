@@ -4,7 +4,7 @@ server {
 
     # 前端静态文件
     location / {
-        root /var/www/netbar_online/frontend/dist;
+        root /data/node_project/netbar_online/frontend/dist;  # 修改为你的实际路径
         try_files $uri $uri/ /index.html;
         index index.html;
         
