@@ -7,8 +7,8 @@
     </div>
 
     <!-- Filter Area -->
-    <div class="px-4 py-3 flex gap-2 items-center">
-      <div class="flex-1">
+    <div class="px-4 py-3 flex flex-wrap gap-2 items-center">
+      <div class="flex-1 min-w-[160px]">
         <input 
           type="date"
           v-model="selectedDate"
@@ -17,7 +17,7 @@
       </div>
       <button 
         @click="showFilter = true"
-        class="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 flex items-center gap-1 whitespace-nowrap"
+        class="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 flex items-center gap-1 whitespace-nowrap flex-shrink-0"
       >
         筛选
         <span class="bg-slate-700 text-white px-1.5 py-0.5 rounded-full text-xs">{{ selectedStores.length }}</span>
