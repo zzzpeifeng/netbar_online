@@ -17,9 +17,10 @@
       </div>
       <button 
         @click="showFilter = true"
-        class="px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 flex items-center gap-1 flex-shrink-0"
+        class="flex-shrink-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 flex items-center gap-1"
       >
-        筛选
+        <span class="hidden sm:inline">筛选</span>
+        <span class="inline sm:hidden text-xs">筛</span>
         <span class="bg-slate-700 text-white px-1 py-0.5 rounded-full text-xs">{{ selectedStores.length }}</span>
       </button>
     </div>
