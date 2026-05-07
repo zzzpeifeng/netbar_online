@@ -250,20 +250,29 @@ const initChart = async () => {
   chartInstance = echarts.init(chartRef.value)
   window.addEventListener('resize', handleResize)
   document.addEventListener('click', handleClickOutside)
-  
-  if (chartDisplayStores.value.length > 0) {
-    updateChart()
-  }
 }
 
 // 更新图表数据
-const updateChart = () => {
+const updateChart = async () => {
+  // 确保 DOM 已更新，chartRef 已绑定
+  if (!chartRef.value) {
+    await nextTick()
+    if (!chartRef.value) {
+      // DOM 可能还未更新，延迟重试
+      setTimeout(() => updateChart(), 50)
+      return
+    }
+  }
+  
   if (!chartInstance) {
-    console.warn('chartInstance 未初始化，尝试重新初始化')
-    initChart()
+    await initChart()
+    if (!chartInstance) return
+  }
+  
+  if (chartDisplayStores.value.length === 0) {
+    chartInstance.clear()
     return
   }
-  if (chartDisplayStores.value.length === 0) return
     
   const finalTimeLabels = timeColumns.map(h => `${h}:00`)
     
@@ -334,10 +343,9 @@ const handleResize = () => {
 }
 
 // 监听图表门店变化
-watch(selectedChartStores, () => {
-  nextTick(() => {
-    updateChart()
-  })
+watch(selectedChartStores, async () => {
+  await nextTick()
+  await updateChart()
 }, { deep: true })
 
 // 监听 selectedDate 变化
@@ -603,12 +611,14 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Chart Content -->
-      <div v-if="chartDisplayStores.length === 0" class="flex flex-col items-center justify-center" style="height: 400px;">
+<!-- Chart Content -->
+    <div class="relative" style="height: 400px;">
+      <div v-if="chartDisplayStores.length === 0" class="absolute inset-0 flex flex-col items-center justify-center">
         <div class="text-gray-300 text-5xl mb-3">📊</div>
         <p class="text-gray-400 text-sm">请选择门店以显示趋势图</p>
       </div>
-      <div v-else ref="chartRef" style="width: 100%; height: 400px;"></div>
+      <div v-else ref="chartRef" class="w-full h-full"></div>
+    </div>
     </div>
   </div>
 </template>
