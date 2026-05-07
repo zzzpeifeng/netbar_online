@@ -242,6 +242,13 @@ const initChart = async () => {
     return
   }
   
+  // 检查容器是否可见，如果不可见则延迟重试
+  if (chartRef.value.offsetWidth === 0 || chartRef.value.offsetHeight === 0) {
+    console.warn('图表容器不可见，延迟初始化')
+    setTimeout(() => initChart(), 100)
+    return
+  }
+  
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null
@@ -254,14 +261,9 @@ const initChart = async () => {
 
 // 更新图表数据
 const updateChart = async () => {
-  // 确保 DOM 已更新，chartRef 已绑定
   if (!chartRef.value) {
-    await nextTick()
-    if (!chartRef.value) {
-      // DOM 可能还未更新，延迟重试
-      setTimeout(() => updateChart(), 50)
-      return
-    }
+    console.error('chartRef.value 不存在')
+    return
   }
   
   if (!chartInstance) {
@@ -611,14 +613,14 @@ onUnmounted(() => {
         </div>
       </div>
 
-<!-- Chart Content -->
-    <div class="relative" style="height: 400px;">
-      <div v-if="chartDisplayStores.length === 0" class="absolute inset-0 flex flex-col items-center justify-center">
-        <div class="text-gray-300 text-5xl mb-3">📊</div>
-        <p class="text-gray-400 text-sm">请选择门店以显示趋势图</p>
+      <!-- Chart Content -->
+      <div style="height: 400px; position: relative;">
+        <div v-show="chartDisplayStores.length === 0" class="absolute inset-0 flex flex-col items-center justify-center">
+          <div class="text-gray-300 text-5xl mb-3">📊</div>
+          <p class="text-gray-400 text-sm">请选择门店以显示趋势图</p>
+        </div>
+        <div v-show="chartDisplayStores.length > 0" ref="chartRef" style="width: 100%; height: 100%;"></div>
       </div>
-      <div v-else ref="chartRef" class="w-full h-full"></div>
-    </div>
     </div>
   </div>
 </template>

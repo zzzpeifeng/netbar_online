@@ -8,16 +8,14 @@
 
     <!-- Filter Area -->
     <div class="px-4 py-3 flex gap-2 items-center">
-      <div class="flex-none max-w-[155px] sm:max-w-[180px]">
-        <input 
-          type="date"
-          v-model="selectedDate"
-          class="w-full px-2 py-2 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
-        />
-      </div>
+      <input 
+        type="date"
+        v-model="selectedDate"
+        class="flex-shrink-0 w-[130px] px-2 py-2 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+      />
       <button 
         @click="showFilter = true"
-        class="flex-shrink-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 flex items-center gap-1 whitespace-nowrap"
+        class="flex-shrink-0 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 flex items-center gap-1 whitespace-nowrap ml-auto"
       >
         <span class="hidden sm:inline">筛选</span>
         <span class="inline sm:hidden text-xs">筛</span>
