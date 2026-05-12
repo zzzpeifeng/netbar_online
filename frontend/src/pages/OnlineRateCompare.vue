@@ -97,7 +97,7 @@ const fetchData = async () => {
           .map(store => store.storeName)
       }
       await nextTick()
-      updateChart()
+      await updateChart()
     }
   } catch (error) {
     console.error('获取数据失败:', error)
@@ -233,42 +233,41 @@ const getAverageRateClass = (store) => {
   return getPercentageClass(avg)
 }
 
-// 初始化图表
-const initChart = async () => {
-  await nextTick()
-  
-  if (!chartRef.value) {
-    console.error('chartRef.value 不存在')
-    return
-  }
-  
-  // 检查容器是否可见，如果不可见则延迟重试
-  if (chartRef.value.offsetWidth === 0 || chartRef.value.offsetHeight === 0) {
-    console.warn('图表容器不可见，延迟初始化')
-    setTimeout(() => initChart(), 100)
-    return
-  }
-  
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
-  
-  chartInstance = echarts.init(chartRef.value)
-  window.addEventListener('resize', handleResize)
-  document.addEventListener('click', handleClickOutside)
+// 初始化图表，成功后立即渲染数据
+const initChart = () => {
+  return new Promise((resolve) => {
+    const tryInit = () => {
+      if (!chartRef.value) {
+        resolve(false)
+        return
+      }
+      // 容器不可见时（v-show 刚切换），等待下一帧再试
+      if (chartRef.value.offsetWidth === 0 || chartRef.value.offsetHeight === 0) {
+        requestAnimationFrame(tryInit)
+        return
+      }
+      if (chartInstance) {
+        chartInstance.dispose()
+        chartInstance = null
+      }
+      chartInstance = echarts.init(chartRef.value)
+      window.addEventListener('resize', handleResize)
+      document.addEventListener('click', handleClickOutside)
+      resolve(true)
+    }
+    tryInit()
+  })
 }
 
 // 更新图表数据
 const updateChart = async () => {
   if (!chartRef.value) {
-    console.error('chartRef.value 不存在')
     return
   }
   
   if (!chartInstance) {
-    await initChart()
-    if (!chartInstance) return
+    const ok = await initChart()
+    if (!ok) return
   }
   
   if (chartDisplayStores.value.length === 0) {
@@ -359,10 +358,6 @@ watch(() => selectedDate.value, (newDate) => {
 
 onMounted(async () => {
   await fetchDates()
-  // 延迟初始化图表，确保 DOM 已渲染
-  setTimeout(() => {
-    initChart()
-  }, 100)
 })
 
 onUnmounted(() => {
