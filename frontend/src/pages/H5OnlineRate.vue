@@ -169,6 +169,7 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
 import { getAvailableDates, getOnlineRateData, getStoreOrder } from '../api/onlineRate'
+import { reportVisit } from '../api/visitLog'
 
 export default {
   setup() {
@@ -323,6 +324,7 @@ export default {
 
     onMounted(() => {
       fetchDates()
+      reportVisit({ page: '/h5' }).catch(() => {})
     })
 
     return {

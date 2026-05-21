@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { OnlineRateModule } from './online-rate/online-rate.module';
 import { StoreOrderModule } from './store-order/store-order.module';
+import { VisitLogModule } from './visit-log/visit-log.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { StoreOrderModule } from './store-order/store-order.module';
     // 业务模块
     OnlineRateModule,
     StoreOrderModule,
+    VisitLogModule,
   ],
 })
 export class AppModule {}
