@@ -90,11 +90,14 @@ const fetchData = async () => {
       if (selectedStores.value.length === 0) {
         selectedStores.value = tableData.value.map(store => store.storeName)
       }
-      // 图表默认只选吉姆电竞
+      // 图表默认优先选吉姆电竞；若筛选不到（如门店改名），降级为全选，避免空选中导致图表/loading 异常
       if (selectedChartStores.value.length === 0) {
-        selectedChartStores.value = tableData.value
+        const jimu = tableData.value
           .filter(store => store.storeName.includes('吉姆电竞'))
           .map(store => store.storeName)
+        selectedChartStores.value = jimu.length > 0
+          ? jimu
+          : tableData.value.map(s => s.storeName)
       }
       await nextTick()
       await updateChart()
@@ -209,9 +212,9 @@ const getDisplayData = (store, hour) => {
 
 // 获取百分比对应的样式类
 const getPercentageClass = (percentage) => {
-  if (percentage < 50) return 'bg-green-100 text-green-800'
-  if (percentage <= 70) return 'bg-yellow-100 text-yellow-800'
-  return 'bg-red-100 text-red-800'
+  if (percentage < 50) return 'rate-low inline-block px-2.5 py-0.5 rounded-full text-xs font-medium'
+  if (percentage <= 70) return 'rate-mid inline-block px-2.5 py-0.5 rounded-full text-xs font-medium'
+  return 'rate-high inline-block px-2.5 py-0.5 rounded-full text-xs font-medium'
 }
 
 // 计算平均上座率
@@ -230,19 +233,28 @@ const getAverageRate = (store) => {
 // 获取平均上座率的样式类
 const getAverageRateClass = (store) => {
   const avg = getAverageRate(store)
-  return getPercentageClass(avg)
+  if (avg < 50) return 'rate-low inline-block px-3 py-1 rounded-full text-sm font-semibold'
+  if (avg <= 70) return 'rate-mid inline-block px-3 py-1 rounded-full text-sm font-semibold'
+  return 'rate-high inline-block px-3 py-1 rounded-full text-sm font-semibold'
 }
 
 // 初始化图表，成功后立即渲染数据
-const initChart = () => {
+// 关键：容器持续不可见时必须超时兜底 resolve(false)，绝不能永久 pending（否则会卡死 loading）
+const initChart = (timeoutMs = 1200) => {
   return new Promise((resolve) => {
+    const start = Date.now()
     const tryInit = () => {
       if (!chartRef.value) {
         resolve(false)
         return
       }
-      // 容器不可见时（v-show 刚切换），等待下一帧再试
+      // 容器不可见时（v-show 刚切换 / 未选中门店）等待下一帧再试
       if (chartRef.value.offsetWidth === 0 || chartRef.value.offsetHeight === 0) {
+        if (Date.now() - start > timeoutMs) {
+          console.warn('图表容器持续不可见，放弃初始化')
+          resolve(false)
+          return
+        }
         requestAnimationFrame(tryInit)
         return
       }
@@ -299,17 +311,23 @@ const updateChart = async () => {
   })
     
   const option = {
+    backgroundColor: 'transparent',
     title: {
       text: '上座率趋势对比',
-      left: 'center'
+      left: 'center',
+      textStyle: { color: '#c8d0e0', fontSize: 14 }
     },
     tooltip: {
-      trigger: 'axis'
+      trigger: 'axis',
+      backgroundColor: 'rgba(15,22,45,0.95)',
+      borderColor: 'rgba(0,255,255,0.3)',
+      textStyle: { color: '#c8d0e0', fontSize: 12 }
     },
     legend: {
       data: chartDisplayStores.value.map(s => s.storeName),
       top: 30,
-      type: 'scroll'
+      type: 'scroll',
+      textStyle: { color: '#8892a4', fontSize: 11 }
     },
     grid: {
       left: '3%',
@@ -321,13 +339,20 @@ const updateChart = async () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: finalTimeLabels
+      data: finalTimeLabels,
+      axisLine: { lineStyle: { color: 'rgba(0,255,255,0.15)' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#6b7fa3' }
     },
     yAxis: {
       type: 'value',
       axisLabel: {
-        formatter: '{value}%'
+        formatter: '{value}%',
+        color: '#6b7fa3'
       },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
       max: 100
     },
     series: series
@@ -373,21 +398,21 @@ onUnmounted(() => {
 <template>
   <div class="space-y-6">
     <!-- Page Title -->
-    <div class="bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl shadow-lg p-6">
-      <h2 class="text-xl font-semibold text-white tracking-wide">网吧上座率对比</h2>
-      <p class="text-slate-300 text-sm mt-1">实时监控各门店上座率数据</p>
+    <div class="glass-card p-6 relative overflow-hidden" style="border-top: 2px solid transparent; border-image: linear-gradient(90deg, transparent, #00ffff, transparent) 1;">
+      <h2 class="text-xl font-semibold tracking-wide section-title" style="color: #e0e0e0;">网吧上座率对比</h2>
+      <p class="text-sm mt-1" style="color: #6b7fa3;">实时监控各门店上座率数据</p>
     </div>
 
     <!-- Filter Area -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex gap-4 items-center flex-wrap">
+    <div class="glass-card p-5 flex gap-4 items-center flex-wrap">
       <div class="flex items-center gap-3">
-        <label class="text-sm font-medium text-gray-600">日期</label>
+        <label class="text-sm font-medium" style="color: #6b7fa3;">日期</label>
         <input 
           type="date"
           v-model="selectedDate"
-          class="px-4 py-2 border border-gray-200 rounded-xl bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all"
+          class="sci-input px-4 py-2 rounded-xl text-sm"
         />
-        <span v-if="!availableDates.includes(selectedDate)" class="text-xs text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
+        <span v-if="!availableDates.includes(selectedDate)" class="text-xs px-3 py-1 rounded-full" style="color: #ffaa00; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.2);">
           ⚠ 该日期无数据
         </span>
       </div>
@@ -397,35 +422,35 @@ onUnmounted(() => {
         <button 
           ref="storeFilterButton"
           @click.stop="showStoreFilter = !showStoreFilter"
-          class="px-4 py-2 border border-gray-200 rounded-xl bg-white text-sm hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+          class="sci-btn-ghost px-4 py-2 text-sm"
         >
-          <span class="text-gray-600">表格门店</span>
-          <span class="ml-2 bg-slate-700 text-white px-2 py-0.5 rounded-full text-xs">{{ selectedStores.length }}</span>
+          <span>表格门店</span>
+          <span class="ml-2 px-2 py-0.5 rounded-full text-xs" style="background: rgba(0,255,255,0.15); color: #00ffff;">{{ selectedStores.length }}</span>
         </button>
           
         <div 
           v-if="showStoreFilter"
           ref="storeFilterDropdown"
-          class="absolute top-full left-0 mt-2 w-72 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden"
+          class="absolute top-full left-0 mt-2 w-72 rounded-2xl shadow-xl z-50 overflow-hidden" style="background: rgba(15,22,45,0.98); backdrop-filter: blur(20px); border: 1px solid rgba(0,255,255,0.15);"
         >
           <!-- 搜索框 -->
-          <div class="p-3 border-b border-gray-100">
+          <div class="p-3" style="border-bottom: 1px solid rgba(0,255,255,0.08);">
             <input 
               v-model="storeSearchQuery"
               type="text"
               placeholder="搜索门店名称..."
-              class="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+              class="sci-input w-full px-4 py-2 text-sm rounded-xl"
             />
           </div>
           <!-- 全选/取消全选 -->
-          <div class="p-3 border-b border-gray-100 flex justify-between items-center">
+          <div class="p-3 flex justify-between items-center" style="border-bottom: 1px solid rgba(0,255,255,0.08);">
             <button 
               @click="toggleAllStores"
-              class="text-sm text-slate-700 hover:text-slate-900 font-medium"
+              class="text-sm font-medium hover:opacity-80" style="color: #00ffff;"
             >
               {{ selectedStores.length === tableData.length ? '取消全选' : '全选' }}
             </button>
-            <span class="text-xs text-gray-400">
+            <span class="text-xs" style="color: #5a6a8a;">
               {{ filteredTableData.length }} / {{ tableData.length }}
             </span>
           </div>
@@ -434,21 +459,22 @@ onUnmounted(() => {
             <label 
               v-for="store in filteredTableData" 
               :key="store.storeName"
-              class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm transition-colors"
+              class="flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-white/5"
             >
               <input 
                 type="checkbox"
                 :checked="selectedStores.includes(store.storeName)"
                 @change="toggleStore(store.storeName)"
-                class="w-4 h-4 rounded border-gray-300 text-slate-700 focus:ring-slate-400"
+                class="w-4 h-4 rounded"
+                style="accent-color: #00ffff;"
               />
-              <span :class="store.storeName.includes('吉姆电竞') ? 'font-medium text-slate-800' : 'text-gray-600'">
+              <span :style="store.storeName.includes('吉姆电竞') ? 'color: #00ffff; font-weight: 500;' : 'color: #8892a4;'">
                 {{ store.storeName }}
               </span>
             </label>
             <div 
               v-if="filteredTableData.length === 0"
-              class="p-4 text-center text-gray-400 text-sm"
+              class="p-4 text-center text-sm" style="color: #5a6a8a;"
             >
               未找到匹配的门店
             </div>
@@ -456,24 +482,24 @@ onUnmounted(() => {
         </div>
       </div>
         
-      <div class="text-sm text-gray-400 ml-auto">
+      <div class="text-sm ml-auto" style="color: #5a6a8a;">
         {{ displayStores.length }} / {{ tableData.length }} 家门店
       </div>
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
-      <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-slate-700"></div>
-      <p class="mt-3 text-gray-400 text-sm">加载中...</p>
+    <div v-if="loading" class="text-center py-16 glass-card">
+      <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2" style="border-color: #00ffff;"></div>
+      <p class="mt-3 text-sm" style="color: #6b7fa3;">加载中...</p>
     </div>
 
     <!-- Data Table -->
-    <div v-else class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div v-else class="glass-card overflow-hidden">
       <!-- Frozen Section (吉姆电竞门店) -->
-      <div v-if="jimuStores.length > 0" class="border-b border-gray-100">
-        <table class="w-full text-sm">
+      <div v-if="jimuStores.length > 0" style="border-bottom: 1px solid rgba(0,255,255,0.08);">
+        <table class="w-full text-sm sci-table">
           <thead>
-            <tr class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider">
+            <tr style="background: rgba(0,255,255,0.04);">
               <th class="p-3 text-center font-medium">排名</th>
               <th class="p-3 text-left font-medium">门店名称</th>
               <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">
@@ -483,17 +509,17 @@ onUnmounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(store, idx) in jimuStores" :key="store.storeName" class="border-b border-gray-50 hover:bg-slate-50/50 transition-colors">
-              <td class="p-3 text-center text-gray-400 text-xs">{{ idx + 1 }}</td>
-              <td class="p-3 font-medium text-slate-700">{{ store.storeName }}</td>
+            <tr v-for="(store, idx) in jimuStores" :key="store.storeName" class="border-b border-white/5 hover:bg-cyan-500/5 transition-colors">
+              <td class="p-3 text-center text-xs" style="color: #4a5a7a;">{{ idx + 1 }}</td>
+              <td class="p-3 font-medium" style="color: #e0e0e0;">{{ store.storeName }}</td>
               <td class="p-3 text-center" v-for="hour in timeColumns" :key="hour">
-                <div class="text-xs text-gray-400 mb-1">{{ getDisplayData(store, hour).online }}/{{ getDisplayData(store, hour).total }}</div>
-                <div :class="getPercentageClass(getDisplayData(store, hour).percentage)" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium">
+                <div class="text-xs mb-1" style="color: #5a6a8a;">{{ getDisplayData(store, hour).online }}/{{ getDisplayData(store, hour).total }}</div>
+                <div :class="getPercentageClass(getDisplayData(store, hour).percentage)">
                   {{ getDisplayData(store, hour).percentage }}%
                 </div>
               </td>
               <td class="p-3 text-center">
-                <span :class="getAverageRateClass(store)" class="inline-block px-3 py-1 rounded-full text-sm font-semibold">
+                <span :class="getAverageRateClass(store)">
                   {{ getAverageRate(store) }}%
                 </span>
               </td>
@@ -504,9 +530,9 @@ onUnmounted(() => {
 
       <!-- Scrollable Section (Other stores) -->
       <div class="overflow-auto" style="max-height: calc(100vh - 450px);">
-        <table class="w-full text-sm">
-          <thead class="sticky top-0 bg-white z-10 shadow-sm">
-            <tr class="text-slate-600 text-xs uppercase tracking-wider border-b border-gray-100">
+        <table class="w-full text-sm sci-table">
+          <thead class="sticky top-0 z-10 shadow-sm" style="background: rgba(15,20,40,0.95); backdrop-filter: blur(10px);">
+            <tr>
               <th class="p-3 text-center font-medium">排名</th>
               <th class="p-3 text-left font-medium">门店名称</th>
               <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">
@@ -516,17 +542,17 @@ onUnmounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(store, idx) in otherStores" :key="store.storeName" class="border-b border-gray-50 hover:bg-slate-50/50 transition-colors">
-              <td class="p-3 text-center text-gray-400 text-xs">{{ idx + 1 }}</td>
-              <td class="p-3 text-gray-600">{{ store.storeName }}</td>
+            <tr v-for="(store, idx) in otherStores" :key="store.storeName" class="border-b border-white/5 hover:bg-cyan-500/5 transition-colors">
+              <td class="p-3 text-center text-xs" style="color: #4a5a7a;">{{ idx + 1 }}</td>
+              <td class="p-3" style="color: #8892a4;">{{ store.storeName }}</td>
               <td class="p-3 text-center" v-for="hour in timeColumns" :key="hour">
-                <div class="text-xs text-gray-400 mb-1">{{ getDisplayData(store, hour).online }}/{{ getDisplayData(store, hour).total }}</div>
-                <div :class="getPercentageClass(getDisplayData(store, hour).percentage)" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium">
+                <div class="text-xs mb-1" style="color: #5a6a8a;">{{ getDisplayData(store, hour).online }}/{{ getDisplayData(store, hour).total }}</div>
+                <div :class="getPercentageClass(getDisplayData(store, hour).percentage)">
                   {{ getDisplayData(store, hour).percentage }}%
                 </div>
               </td>
               <td class="p-3 text-center">
-                <span :class="getAverageRateClass(store)" class="inline-block px-3 py-1 rounded-full text-sm font-semibold">
+                <span :class="getAverageRateClass(store)">
                   {{ getAverageRate(store) }}%
                 </span>
               </td>
@@ -537,46 +563,46 @@ onUnmounted(() => {
     </div>
 
     <!-- Chart Area -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div class="glass-card p-6">
       <!-- Chart Header with Filter -->
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h3 class="text-lg font-semibold text-slate-800">上座率趋势对比</h3>
-          <p class="text-xs text-gray-400 mt-0.5">各门店时段上座率变化</p>
+          <h3 class="text-lg font-semibold section-title" style="color: #e0e0e0;">上座率趋势对比</h3>
+          <p class="text-xs mt-0.5" style="color: #5a6a8a;">各门店时段上座率变化</p>
         </div>
         <div class="relative">
           <button 
             ref="chartFilterButton"
             @click="showChartFilter = !showChartFilter"
-            class="px-4 py-2 border border-gray-200 rounded-xl bg-white text-sm hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+            class="sci-btn-ghost px-4 py-2 text-sm"
           >
-            <span class="text-gray-600">图表门店</span>
-            <span class="ml-2 bg-slate-700 text-white px-2 py-0.5 rounded-full text-xs">{{ selectedChartStores.length }}</span>
+            <span>图表门店</span>
+            <span class="ml-2 px-2 py-0.5 rounded-full text-xs" style="background: rgba(0,255,255,0.15); color: #00ffff;">{{ selectedChartStores.length }}</span>
           </button>
             
           <div 
             v-if="showChartFilter"
             ref="chartFilterDropdown"
-            class="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden"
+            class="absolute top-full right-0 mt-2 w-72 rounded-2xl shadow-xl z-50 overflow-hidden" style="background: rgba(15,22,45,0.98); backdrop-filter: blur(20px); border: 1px solid rgba(0,255,255,0.15);"
           >
             <!-- 搜索框 -->
-            <div class="p-3 border-b border-gray-100">
+            <div class="p-3" style="border-bottom: 1px solid rgba(0,255,255,0.08);">
               <input 
                 v-model="chartSearchQuery"
                 type="text"
                 placeholder="搜索门店名称..."
-                class="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                class="sci-input w-full px-4 py-2 text-sm rounded-xl"
               />
             </div>
             <!-- 全选/取消全选 -->
-            <div class="p-3 border-b border-gray-100 flex justify-between items-center">
+            <div class="p-3 flex justify-between items-center" style="border-bottom: 1px solid rgba(0,255,255,0.08);">
               <button 
                 @click="toggleAllChartStores"
-                class="text-sm text-slate-700 hover:text-slate-900 font-medium"
+                class="text-sm font-medium hover:opacity-80" style="color: #00ffff;"
               >
                 {{ selectedChartStores.length === tableData.length ? '取消全选' : '全选' }}
               </button>
-              <span class="text-xs text-gray-400">
+              <span class="text-xs" style="color: #5a6a8a;">
                 {{ filteredTableDataForChart.length }} / {{ tableData.length }}
               </span>
             </div>
@@ -585,21 +611,22 @@ onUnmounted(() => {
               <label 
                 v-for="store in filteredTableDataForChart" 
                 :key="store.storeName"
-                class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm transition-colors"
+                class="flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-white/5"
               >
                 <input 
                   type="checkbox"
                   :checked="selectedChartStores.includes(store.storeName)"
                   @change="toggleChartStore(store.storeName)"
-                  class="w-4 h-4 rounded border-gray-300 text-slate-700 focus:ring-slate-400"
+                  class="w-4 h-4 rounded"
+                  style="accent-color: #00ffff;"
                 />
-                <span :class="store.storeName.includes('吉姆电竞') ? 'font-medium text-slate-800' : 'text-gray-600'">
+                <span :style="store.storeName.includes('吉姆电竞') ? 'color: #00ffff; font-weight: 500;' : 'color: #8892a4;'">
                   {{ store.storeName }}
                 </span>
               </label>
               <div 
                 v-if="filteredTableDataForChart.length === 0"
-                class="p-4 text-center text-gray-400 text-sm"
+                class="p-4 text-center text-sm" style="color: #5a6a8a;"
               >
                 未找到匹配的门店
               </div>
@@ -611,8 +638,8 @@ onUnmounted(() => {
       <!-- Chart Content -->
       <div style="height: 400px; position: relative;">
         <div v-show="chartDisplayStores.length === 0" class="absolute inset-0 flex flex-col items-center justify-center">
-          <div class="text-gray-300 text-5xl mb-3">📊</div>
-          <p class="text-gray-400 text-sm">请选择门店以显示趋势图</p>
+          <div class="text-4xl mb-3 opacity-20">📊</div>
+          <p class="text-sm" style="color: #5a6a8a;">请选择门店以显示趋势图</p>
         </div>
         <div v-show="chartDisplayStores.length > 0" ref="chartRef" style="width: 100%; height: 100%;"></div>
       </div>

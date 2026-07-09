@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen" style="background: #0a0e1a;">
     <!-- Header -->
-    <div class="bg-gradient-to-r from-slate-800 to-slate-700 px-4 pt-12 pb-4">
-      <h1 class="text-lg font-semibold text-white tracking-wide">网吧上座率</h1>
-      <p class="text-slate-300 text-xs mt-1">实时监控数据</p>
+    <div class="px-4 pt-12 pb-4" style="background: linear-gradient(135deg, rgba(12,18,36,0.95), rgba(15,22,45,0.98));">
+      <h1 class="text-lg font-semibold tracking-wide" style="color: #e0e0e0;">网吧上座率</h1>
+      <p class="text-xs mt-1" style="color: #6b7fa3;">实时监控数据</p>
     </div>
 
     <!-- Filter Area -->
@@ -13,34 +13,34 @@
           type="date"
           v-model="selectedDate"
           style="width: 130px; flex-shrink: 0;"
-          class="px-2 py-2 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+          class="sci-input px-2 py-2 rounded-xl text-sm"
         />
         <button 
           @click="showFilter = true"
-          class="flex-shrink-0 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 flex items-center gap-1 whitespace-nowrap"
+          class="sci-btn-ghost flex-shrink-0 px-3 py-2 rounded-xl text-sm flex items-center gap-1 whitespace-nowrap"
         >
           <span class="hidden sm:inline">筛选</span>
           <span class="inline sm:hidden text-xs">筛</span>
-          <span class="bg-slate-700 text-white px-1 py-0.5 rounded-full text-xs">{{ selectedStores.length }}</span>
+          <span class="px-1 py-0.5 rounded-full text-xs" style="background: rgba(0,255,255,0.15); color: #00ffff;">{{ selectedStores.length }}</span>
         </button>
       </div>
     </div>
 
     <!-- Data Table (Horizontal Scroll) -->
     <div class="px-4">
-      <div class="bg-white rounded-2xl border border-gray-100">
+      <div class="rounded-2xl" style="background: rgba(15,20,40,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(0,255,255,0.12);">
         <!-- 整体横向滚动 -->
         <div class="overflow-x-auto">
           <div class="inline-block min-w-full">
             <!-- Header -->
-            <div class="flex border-b border-gray-100">
-              <div class="sticky left-0 z-20 w-20 min-w-20 px-3 py-2.5 bg-slate-50 text-xs text-slate-500 font-medium uppercase tracking-wider border-r border-gray-100">
+            <div class="flex" style="border-bottom: 1px solid rgba(0,255,255,0.08);">
+              <div class="sticky left-0 z-20 w-20 min-w-20 px-3 py-2.5 text-xs font-medium uppercase tracking-wider" style="background: rgba(0,255,255,0.04); color: #6b7fa3; border-right: 1px solid rgba(0,255,255,0.08);">
                 门店
               </div>
               <div 
                 v-for="hour in timeColumns" 
                 :key="hour"
-                class="w-14 min-w-14 px-1 py-2.5 text-center text-xs text-slate-500 font-medium"
+                class="w-14 min-w-14 px-1 py-2.5 text-center text-xs font-medium" style="color: #6b7fa3;"
               >
                 {{ hour }}
               </div>
@@ -49,7 +49,7 @@
             <!-- Store Rows -->
             <template v-for="(group, groupName) in groupedStores" :key="groupName">
               <!-- Group Header -->
-              <div class="px-3 py-1.5 bg-gray-50 text-xs text-slate-500 font-medium border-b border-gray-100">
+              <div class="px-3 py-1.5 text-xs font-medium" style="color: #6b7fa3; background: rgba(0,255,255,0.04); border-bottom: 1px solid rgba(0,255,255,0.08);">
                 {{ groupName }}
               </div>
               
@@ -57,11 +57,11 @@
               <div 
                 v-for="store in group" 
                 :key="store.storeName"
-                class="flex border-b border-gray-50 last:border-b-0"
+                class="flex" style="border-bottom: 1px solid rgba(255,255,255,0.03);"
               >
                 <!-- Store Name (Fixed) -->
-                <div class="sticky left-0 z-10 w-20 min-w-20 px-3 py-2.5 bg-white border-r border-gray-100 flex items-center">
-                  <span class="text-xs" :class="groupName === '吉姆电竞' ? 'text-slate-700 font-medium' : 'text-slate-600'">
+                <div class="sticky left-0 z-10 w-20 min-w-20 px-3 py-2.5 flex items-center" style="background: rgba(15,20,40,0.9); border-right: 1px solid rgba(0,255,255,0.08);">
+                  <span class="text-xs" :class="groupName === '吉姆电竞' ? 'text-cyan-400 font-medium' : 'text-slate-400'">
                     {{ store.storeName.replace('吉姆电竞-', '') }}
                   </span>
                 </div>
@@ -72,7 +72,7 @@
                   :key="hour"
                   class="w-14 min-w-14 px-1 py-2 text-center"
                 >
-                  <div class="text-xs text-slate-400 mb-0.5">{{ getDisplayData(store, hour).online }}/{{ getDisplayData(store, hour).total }}</div>
+                  <div class="text-xs mb-0.5" style="color: #5a6a8a;">{{ getDisplayData(store, hour).online }}/{{ getDisplayData(store, hour).total }}</div>
                   <div :class="getPercentageClass(getDisplayData(store, hour).percentage)" class="inline-block px-1.5 py-0.5 rounded-full text-xs font-medium">
                     {{ getDisplayData(store, hour).percentage }}%
                   </div>
@@ -91,33 +91,34 @@
     >
       <!-- Overlay -->
       <div 
-        class="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        class="absolute inset-0" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);"
         @click="showFilter = false"
       ></div>
       
       <!-- Modal Content -->
-      <div class="relative bg-white rounded-t-3xl w-full max-h-[70vh] flex flex-col z-10">
+      <div class="relative rounded-t-3xl w-full max-h-[70vh] flex flex-col z-10" style="background: rgba(15,22,45,0.98); backdrop-filter: blur(20px);">
         <!-- Handle -->
-        <div class="w-9 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-4 flex-shrink-0"></div>
+        <div class="w-9 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-4 flex-shrink-0" style="background: rgba(255,255,255,0.15);"></div>
         
         <div class="flex-1 overflow-y-auto px-5 pb-8">
-          <h3 class="text-lg font-semibold text-slate-800 mb-3">选择门店</h3>
+          <h3 class="text-lg font-semibold mb-3" style="color: #e0e0e0;">选择门店</h3>
           
           <!-- Search -->
           <input 
             v-model="searchQuery"
             type="text"
             placeholder="搜索门店名称..."
-            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent mb-3"
+            class="sci-input w-full px-4 py-2.5 rounded-xl text-sm mb-3"
           />
           
           <!-- Select All -->
-          <div class="flex justify-between items-center py-2.5 border-b border-gray-100 mb-2">
-            <span class="text-sm text-slate-700 font-medium">全选</span>
+          <div class="flex justify-between items-center py-2.5 mb-2" style="border-bottom: 1px solid rgba(0,255,255,0.08);">
+            <span class="text-sm font-medium" style="color: #e0e0e0;">全选</span>
             <button 
               @click="toggleAll"
               class="w-11 h-6 rounded-full transition-colors relative"
               :class="selectedStores.length === storeList.length ? 'bg-slate-700' : 'bg-gray-300'"
+              :style="selectedStores.length === storeList.length ? { background: 'rgba(0,255,255,0.3)' } : { background: 'rgba(255,255,255,0.1)' }"
             >
               <div 
                 class="w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all"
@@ -130,17 +131,18 @@
           <label 
             v-for="store in filteredStores" 
             :key="store"
-            class="flex items-center gap-3 py-3 border-b border-gray-50 cursor-pointer"
+            class="flex items-center gap-3 py-3 cursor-pointer" style="border-bottom: 1px solid rgba(255,255,255,0.03);"
           >
             <input 
               type="checkbox"
               :checked="selectedStores.includes(store)"
               @change="toggleStore(store)"
-              class="w-5 h-5 accent-slate-700"
+              class="w-5 h-5"
+              style="accent-color: #00ffff;"
             />
             <span 
               class="text-sm"
-              :class="store.includes('吉姆电竞') ? 'text-slate-700 font-medium' : 'text-slate-600'"
+              :class="store.includes('吉姆电竞') ? 'text-cyan-400 font-medium' : 'text-slate-400'"
             >
               {{ store }}
             </span>
@@ -148,7 +150,7 @@
 
           <div 
             v-if="filteredStores.length === 0"
-            class="py-8 text-center text-gray-400 text-sm"
+            class="py-8 text-center text-sm" style="color: #5a6a8a;"
           >
             未找到匹配的门店
           </div>
@@ -156,7 +158,7 @@
           <!-- Confirm Button -->
           <button 
             @click="showFilter = false"
-            class="w-full py-3.5 bg-slate-800 text-white rounded-xl text-sm font-medium mt-4 shadow-sm"
+            class="w-full py-3.5 rounded-xl text-sm font-medium mt-4" style="background: rgba(0,255,255,0.15); color: #00ffff; border: 1px solid rgba(0,255,255,0.2);"
           >
             确认 ({{ selectedStores.length }}/{{ storeList.length }})
           </button>
@@ -291,9 +293,9 @@ export default {
 
     // 获取百分比对应的样式类
     const getPercentageClass = (percentage) => {
-      if (percentage < 50) return 'bg-green-100 text-green-800'
-      if (percentage <= 70) return 'bg-yellow-100 text-yellow-800'
-      return 'bg-red-100 text-red-800'
+      if (percentage < 50) return 'rate-low'
+      if (percentage <= 70) return 'rate-mid'
+      return 'rate-high'
     }
 
     // 切换门店选中

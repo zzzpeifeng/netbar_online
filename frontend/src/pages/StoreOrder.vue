@@ -407,14 +407,14 @@ onUnmounted(() => {
 <template>
   <div class="space-y-6">
     <!-- Page Title -->
-    <div class="bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl shadow-lg p-6 flex items-center justify-between">
+    <div class="glass-card p-6 flex items-center justify-between relative overflow-hidden" style="border-top: 2px solid transparent; border-image: linear-gradient(90deg, transparent, #8b5cf6, transparent) 1;">
       <div>
-        <h2 class="text-xl font-semibold text-white tracking-wide">设置</h2>
-        <p class="text-slate-300 text-sm mt-1">门店排序配置 · 访问统计</p>
+        <h2 class="text-xl font-semibold tracking-wide section-title" style="color: #e0e0e0;">设置</h2>
+        <p class="text-sm mt-1" style="color: #6b7fa3;">门店排序配置 · 访问统计</p>
       </div>
       <button 
         @click="$router.push('/')"
-        class="text-sm text-slate-300 hover:text-white transition-colors"
+        class="text-sm transition-colors" style="color: #8892a4;" onmouseover="this.style.color='#00ffff'" onmouseout="this.style.color='#8892a4'"
       >
         ← 返回上座率页面
       </button>
@@ -423,7 +423,7 @@ onUnmounted(() => {
     <!-- Success Message -->
     <div 
       v-if="showSuccess" 
-      class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl flex items-center gap-2"
+      class="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium" style="color: #00ff88; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.2);"
     >
       <span>✓</span>
       <span class="text-sm font-medium">操作成功！</span>
@@ -432,17 +432,17 @@ onUnmounted(() => {
     <!-- Error Message -->
     <div 
       v-if="showError" 
-      class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center justify-between"
+      class="flex items-center justify-between px-4 py-3 rounded-xl text-sm" style="color: #ff4466; background: rgba(255,68,102,0.1); border: 1px solid rgba(255,68,102,0.2);"
     >
       <div class="flex items-center gap-2">
         <span>✗</span>
-        <span class="text-sm font-medium">{{ errorMessage }}</span>
+        <span class="font-medium">{{ errorMessage }}</span>
       </div>
       <button 
         @click="showError = false"
-        class="text-red-400 hover:text-red-600 transition-colors"
+        class="text-xl transition-colors" style="color: #ff4466;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'"
       >
-        <span class="text-xl">&times;</span>
+        &times;
       </button>
     </div>
 
@@ -509,17 +509,17 @@ onUnmounted(() => {
     <!-- ======== 访问热力墙 END ======== -->
 
     <!-- Description -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-      <h3 class="text-sm font-semibold text-slate-700 mb-2">门店排序设置</h3>
-      <p class="text-sm text-gray-500">拖拽门店条目可调整显示顺序，排序将应用于"网吧上座率"页面的门店列表。</p>
+    <div class="glass-card p-5">
+      <h3 class="text-sm font-semibold mb-2" style="color: #e0e0e0;">门店排序设置</h3>
+      <p class="text-sm" style="color: #6b7fa3;">拖拽门店条目可调整显示顺序，排序将应用于"网吧上座率"页面的门店列表。</p>
     </div>
 
     <!-- Action Buttons -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex gap-4">
+    <div class="glass-card p-5 flex gap-4">
       <button
         @click="saveOrder"
         :disabled="saving"
-        class="px-5 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 disabled:opacity-50 flex items-center gap-2 text-sm font-medium transition-all shadow-sm"
+        class="sci-btn-primary px-5 py-2.5 flex items-center gap-2 text-sm font-medium disabled:opacity-50"
       >
         <span v-if="saving" class="animate-spin">⟳</span>
         <span v-else>⟡</span>
@@ -527,23 +527,23 @@ onUnmounted(() => {
       </button>
       <button
         @click="requestReset"
-        class="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 flex items-center gap-2 text-sm font-medium transition-all"
+        class="sci-btn-ghost px-5 py-2.5 flex items-center gap-2 text-sm font-medium"
       >
         ↺ 重置为默认
       </button>
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
-      <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-slate-700"></div>
-      <p class="mt-3 text-gray-400 text-sm">加载中...</p>
+    <div v-if="loading" class="text-center py-16 glass-card">
+      <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2" style="border-color: #00ffff;"></div>
+      <p class="mt-3 text-sm" style="color: #6b7fa3;">加载中...</p>
     </div>
 
     <!-- Sortable List -->
-    <div v-else class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <table class="w-full text-sm">
+    <div v-else class="glass-card overflow-hidden">
+      <table class="w-full text-sm sci-table">
         <thead>
-          <tr class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider">
+          <tr style="background: rgba(0,255,255,0.04);">
             <th class="p-3 text-center font-medium">排序</th>
             <th class="p-3 text-left font-medium">门店名称</th>
             <th class="p-3 text-center font-medium">品牌</th>
@@ -556,23 +556,23 @@ onUnmounted(() => {
           item-key="storeName"
         >
           <template #item="{ element, index }">
-            <tr class="border-b border-gray-50 hover:bg-slate-50/50 cursor-move transition-colors">
+            <tr class="border-b border-white/5 hover:bg-cyan-500/5 cursor-move transition-colors">
               <td class="p-3 text-center">
                 <div class="flex items-center justify-center gap-2">
-                  <span class="text-slate-300">⠿</span>
-                  <span class="font-semibold text-slate-700">{{ index + 1 }}</span>
+                  <span style="color: #4a5a7a;">⠿</span>
+                  <span class="font-semibold" style="color: #c8d0e0;">{{ index + 1 }}</span>
                 </div>
               </td>
-              <td class="p-3 text-slate-700">{{ element.storeName }}</td>
+              <td class="p-3" style="color: #c8d0e0;">{{ element.storeName }}</td>
               <td class="p-3 text-center">
                 <span
                   class="px-3 py-1 rounded-full text-xs font-medium"
-                  :class="element.isJim ? 'bg-slate-100 text-slate-700' : 'bg-gray-100 text-gray-600'"
+                  :class="element.isJim ? 'badge-jim' : 'badge-other'"
                 >
                   {{ element.isJim ? '吉姆电竞' : '其他' }}
                 </span>
               </td>
-              <td class="p-3 text-center text-slate-300">
+              <td class="p-3 text-center" style="color: #4a5a7a;">
                 <span class="text-lg">⋮⋮</span>
               </td>
             </tr>
@@ -584,21 +584,21 @@ onUnmounted(() => {
     <!-- Confirm Reset Modal -->
     <div 
       v-if="showConfirmReset" 
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+      class="fixed inset-0 flex items-center justify-center z-50" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);"
     >
-      <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-        <h3 class="text-lg font-semibold text-slate-800 mb-2">确认重置</h3>
-        <p class="text-gray-500 text-sm mb-6">确定要重置为默认排序吗？此操作不可撤销。</p>
+      <div class="rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" style="background: rgba(15,22,45,0.98); border: 1px solid rgba(255,68,102,0.3);">
+        <h3 class="text-lg font-semibold mb-2" style="color: #e0e0e0;">确认重置</h3>
+        <p class="text-sm mb-6" style="color: #6b7fa3;">确定要重置为默认排序吗？此操作不可撤销。</p>
         <div class="flex gap-4 justify-end">
           <button 
             @click="cancelReset"
-            class="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-all text-sm font-medium"
+            class="sci-btn-ghost px-5 py-2.5 text-sm font-medium"
           >
             取消
           </button>
           <button 
             @click="confirmReset"
-            class="px-5 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all text-sm font-medium shadow-sm"
+            class="px-5 py-2.5 rounded-xl text-sm font-medium transition-all" style="background: rgba(255,68,102,0.2); color: #ff4466; border: 1px solid rgba(255,68,102,0.3);"
           >
             确认重置
           </button>
