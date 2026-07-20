@@ -30,3 +30,6 @@ npm-debug.log*
 *.zip
 *.tar.gz
 *.rar
+
+# Agent 工作区（含记忆/技能等私有数据，非项目源码）
+.workbuddy/
