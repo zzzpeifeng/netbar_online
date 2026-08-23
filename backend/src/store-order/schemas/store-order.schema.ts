@@ -1,5 +1,5 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type StoreOrderDocument = StoreOrder & Document;
 
@@ -13,6 +13,9 @@ export class StoreOrder {
 
   @Prop({ default: false })
   isJim: boolean; // 是否吉姆电竞门店
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Area', index: true, default: null })
+  areaId: MongooseSchema.Types.ObjectId | null;
 }
 
 export const StoreOrderSchema = SchemaFactory.createForClass(StoreOrder);

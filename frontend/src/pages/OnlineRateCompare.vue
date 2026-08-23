@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, watch, computed, onUnmounted, nextTick } from 'vue'
 import { getAvailableDates, getOnlineRateData, getStoreOrder } from '../api/onlineRate'
+import { getAreaList, OTHER_AREA_ID } from '../api/area'
 import * as echarts from 'echarts'
 
 const availableDates = ref([])
@@ -10,6 +11,86 @@ const loading = ref(false)
 const chartRef = ref(null)
 let chartInstance = null
 const storeOrderList = ref([]) // 门店排序配置
+
+// ========== 区筛选 ==========
+const areas = ref([])
+const areasLoading = ref(false)
+const showAreaFilter = ref(false)
+const selectedAreas = ref([]) // 选中的区ID数组；空数组表示不按区筛选（全部区）
+const areaFilterButton = ref(null)
+const areaFilterDropdown = ref(null)
+// 门店名 → 区信息映射 { areaId, areaName }
+const storeToAreaMap = computed(() => {
+  const m = {}
+  for (const a of areas.value) {
+    for (const s of (a.stores || [])) {
+      m[s.storeName] = { areaId: a._id, areaName: a.name }
+    }
+  }
+  return m
+})
+// 选中区所包含的门店名称集合（空选中表示全部区 → 全集）
+const areaAllowedStoreNames = computed(() => {
+  if (selectedAreas.value.length === 0) return null
+  const set = new Set()
+  for (const aid of selectedAreas.value) {
+    const a = areas.value.find(x => x._id === aid)
+    if (a) for (const s of (a.stores || [])) set.add(s.storeName)
+  }
+  return set
+})
+// 门店是否在区筛选允许范围内
+const isStoreAllowedByArea = (storeName) => {
+  const allowed = areaAllowedStoreNames.value
+  if (!allowed) return true
+  return allowed.has(storeName)
+}
+// 拉取区列表
+const fetchAreas = async () => {
+  areasLoading.value = true
+  try {
+    const res = await getAreaList()
+    areas.value = res?.data || []
+  } catch (e) {
+    console.error('拉取区列表失败:', e)
+    areas.value = []
+  } finally {
+    areasLoading.value = false
+  }
+}
+// 区筛选：切换区选中
+const toggleArea = (areaId) => {
+  const i = selectedAreas.value.indexOf(areaId)
+  if (i > -1) selectedAreas.value.splice(i, 1)
+  else selectedAreas.value.push(areaId)
+}
+// 区筛选：全选/取消全选 → 取消全选等价于"不按区筛选（空）"
+const toggleAllAreas = () => {
+  if (selectedAreas.value.length === areas.value.length) {
+    selectedAreas.value = []
+  } else {
+    selectedAreas.value = areas.value.map(a => a._id)
+  }
+}
+// 幽灵选中裁剪：当区筛选变化时，把 selectedStores / selectedChartStores 中不在允许范围内的门店移除
+// 若移除后为空 → 自动回补（在允许范围内全选），避免空选中导致表格/图表空白
+const clipGhostSelections = () => {
+  const allowed = areaAllowedStoreNames.value
+  if (!allowed) return // 不筛选时不裁剪
+  const clip = (list) => {
+    const next = list.value.filter(n => allowed.has(n))
+    if (next.length === 0 && tableData.value.length > 0) {
+      // 回补：在允许范围内尽可能选
+      return tableData.value.filter(s => allowed.has(s.storeName)).map(s => s.storeName)
+    }
+    return next
+  }
+  selectedStores.value = clip(selectedStores)
+  selectedChartStores.value = clip(selectedChartStores)
+}
+watch(selectedAreas, () => {
+  clipGhostSelections()
+}, { deep: true })
 
 // 表格门店筛选
 const showStoreFilter = ref(false)
@@ -25,22 +106,32 @@ const chartFilterButton = ref(null)
 const chartFilterDropdown = ref(null)
 const chartSearchQuery = ref('') // 图表门店搜索关键词
 
-// 过滤后的门店列表（表格筛选）
+// 过滤后的门店列表（表格筛选）——叠加区筛选
 const filteredTableData = computed(() => {
-  if (!storeSearchQuery.value) return tableData.value
-  const query = storeSearchQuery.value.toLowerCase()
-  return tableData.value.filter(store =>
-    store.storeName.toLowerCase().includes(query)
-  )
+  let list = tableData.value
+  // 区筛选
+  const allowed = areaAllowedStoreNames.value
+  if (allowed) list = list.filter(s => allowed.has(s.storeName))
+  // 搜索
+  if (storeSearchQuery.value) {
+    const q = storeSearchQuery.value.toLowerCase()
+    list = list.filter(s => s.storeName.toLowerCase().includes(q))
+  }
+  return list
 })
 
-// 过滤后的门店列表（图表筛选）
+// 过滤后的门店列表（图表筛选）——叠加区筛选
 const filteredTableDataForChart = computed(() => {
-  if (!chartSearchQuery.value) return tableData.value
-  const query = chartSearchQuery.value.toLowerCase()
-  return tableData.value.filter(store =>
-    store.storeName.toLowerCase().includes(query)
-  )
+  let list = tableData.value
+  // 区筛选
+  const allowed = areaAllowedStoreNames.value
+  if (allowed) list = list.filter(s => allowed.has(s.storeName))
+  // 搜索
+  if (chartSearchQuery.value) {
+    const q = chartSearchQuery.value.toLowerCase()
+    list = list.filter(s => s.storeName.toLowerCase().includes(q))
+  }
+  return list
 })
 
 // 获取有数据的日期列表
@@ -62,7 +153,11 @@ const fetchData = async () => {
   if (!selectedDate.value) return
   loading.value = true
   try {
-    const res = await getOnlineRateData(selectedDate.value)
+    // 并行拉取：上座率数据 + 门店排序 + 区列表
+    const [res, areaRes] = await Promise.all([
+      getOnlineRateData(selectedDate.value),
+      fetchAreas().catch(e => { console.warn('拉取区列表失败，继续', e); return null })
+    ])
     if (res.data && res.data.length > 0) {
       // 获取门店排序配置
       let orderMap = {}
@@ -86,18 +181,29 @@ const fetchData = async () => {
         return orderA - orderB
       })
       
-      // 表格默认全选
+      // 区筛选幽灵裁剪（基于新数据）
+      clipGhostSelections()
+
+      // 表格默认全选（仅在未手动选过时）
       if (selectedStores.value.length === 0) {
-        selectedStores.value = tableData.value.map(store => store.storeName)
+        const allowed = areaAllowedStoreNames.value
+        if (allowed) {
+          selectedStores.value = tableData.value.filter(s => allowed.has(s.storeName)).map(s => s.storeName)
+        } else {
+          selectedStores.value = tableData.value.map(store => store.storeName)
+        }
       }
-      // 图表默认优先选吉姆电竞；若筛选不到（如门店改名），降级为全选，避免空选中导致图表/loading 异常
+      // 图表默认优先选吉姆电竞；若筛选不到（如门店改名），降级为区允许范围内的全选，避免空选中导致图表/loading 异常
       if (selectedChartStores.value.length === 0) {
-        const jimu = tableData.value
+        const allowed = areaAllowedStoreNames.value
+        let pool = tableData.value
+        if (allowed) pool = pool.filter(s => allowed.has(s.storeName))
+        const jimu = pool
           .filter(store => store.storeName.includes('吉姆电竞'))
           .map(store => store.storeName)
         selectedChartStores.value = jimu.length > 0
           ? jimu
-          : tableData.value.map(s => s.storeName)
+          : pool.map(s => s.storeName)
       }
       await nextTick()
       await updateChart()
@@ -119,12 +225,20 @@ const toggleStore = (storeName) => {
   }
 }
 
-// 表格筛选：全选/取消全选
+// 表格筛选：全选/取消全选（考虑区筛选范围）
 const toggleAllStores = () => {
-  if (selectedStores.value.length === tableData.value.length) {
-    selectedStores.value = []
+  const allowed = areaAllowedStoreNames.value
+  const pool = allowed
+    ? tableData.value.filter(s => allowed.has(s.storeName)).map(s => s.storeName)
+    : tableData.value.map(s => s.storeName)
+  const allSelectedInPool = pool.length > 0 && pool.every(n => selectedStores.value.includes(n))
+  if (allSelectedInPool) {
+    // 取消全选：只移除 pool 里的那些
+    selectedStores.value = selectedStores.value.filter(n => !pool.includes(n))
   } else {
-    selectedStores.value = tableData.value.map(store => store.storeName)
+    // 全选：合并入 pool
+    const set = new Set([...selectedStores.value, ...pool])
+    selectedStores.value = [...set]
   }
 }
 
@@ -138,17 +252,30 @@ const toggleChartStore = (storeName) => {
   }
 }
 
-// 图表筛选：全选/取消全选
+// 图表筛选：全选/取消全选（考虑区筛选范围）
 const toggleAllChartStores = () => {
-  if (selectedChartStores.value.length === tableData.value.length) {
-    selectedChartStores.value = []
+  const allowed = areaAllowedStoreNames.value
+  const pool = allowed
+    ? tableData.value.filter(s => allowed.has(s.storeName)).map(s => s.storeName)
+    : tableData.value.map(s => s.storeName)
+  const allSelectedInPool = pool.length > 0 && pool.every(n => selectedChartStores.value.includes(n))
+  if (allSelectedInPool) {
+    selectedChartStores.value = selectedChartStores.value.filter(n => !pool.includes(n))
   } else {
-    selectedChartStores.value = tableData.value.map(store => store.storeName)
+    const set = new Set([...selectedChartStores.value, ...pool])
+    selectedChartStores.value = [...set]
   }
 }
 
 // 点击外部关闭下拉菜单
 const handleClickOutside = (event) => {
+  if (showAreaFilter.value && 
+      areaFilterButton.value && 
+      !areaFilterButton.value.contains(event.target) &&
+      areaFilterDropdown.value &&
+      !areaFilterDropdown.value.contains(event.target)) {
+    showAreaFilter.value = false
+  }
   if (showStoreFilter.value && 
       storeFilterButton.value && 
       !storeFilterButton.value.contains(event.target) &&
@@ -416,6 +543,83 @@ onUnmounted(() => {
           ⚠ 该日期无数据
         </span>
       </div>
+
+      <!-- 区筛选 -->
+      <div class="relative" @click.stop>
+        <button 
+          ref="areaFilterButton"
+          @click.stop="showAreaFilter = !showAreaFilter"
+          class="sci-btn-ghost px-4 py-2 text-sm"
+        >
+          <span>区筛选</span>
+          <span 
+            class="ml-2 px-2 py-0.5 rounded-full text-xs" 
+            :style="selectedAreas.length === 0 
+              ? { background: 'rgba(139,92,246,0.12)', color: '#a78bfa' } 
+              : { background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }"
+          >
+            {{ selectedAreas.length === 0 ? '全部' : selectedAreas.length }}
+          </span>
+        </button>
+          
+        <div 
+          v-if="showAreaFilter"
+          ref="areaFilterDropdown"
+          class="absolute top-full left-0 mt-2 w-64 rounded-2xl shadow-xl z-50 overflow-hidden" 
+          style="background: rgba(15,22,45,0.98); backdrop-filter: blur(20px); border: 1px solid rgba(139,92,246,0.25);"
+        >
+          <!-- 全选/取消全选 -->
+          <div class="p-3 flex justify-between items-center" style="border-bottom: 1px solid rgba(139,92,246,0.12);">
+            <button 
+              @click="toggleAllAreas"
+              class="text-sm font-medium hover:opacity-80" 
+              style="color: #c4b5fd;"
+            >
+              {{ selectedAreas.length === areas.length && areas.length > 0 ? '取消全选（=不筛选）' : '全选所有区' }}
+            </button>
+            <span class="text-xs" style="color: #5a6a8a;">
+              区 {{ areas.length }}
+            </span>
+          </div>
+          <!-- 区列表 -->
+          <div class="overflow-auto" style="max-height: 260px;">
+            <div v-if="areasLoading" class="p-4 flex items-center justify-center gap-2 text-sm" style="color: #5a6a8a;">
+              <div class="w-4 h-4 border-2 border-purple-500 border-b-transparent rounded-full animate-spin"></div>加载区...
+            </div>
+            <label 
+              v-for="a in areas" 
+              :key="a._id"
+              class="flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-white/5"
+            >
+              <input 
+                type="checkbox"
+                :checked="selectedAreas.includes(a._id)"
+                @change="toggleArea(a._id)"
+                class="w-4 h-4 rounded"
+                style="accent-color: #8b5cf6;"
+              />
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span class="text-base shrink-0">{{ a.isVirtual ? '⬜' : '🟦' }}</span>
+                <span class="truncate" :style="a.isVirtual ? 'color: #ffaa00;' : 'color: #c8d0e0;'">
+                  {{ a.name }}
+                </span>
+                <span class="text-[11px] shrink-0 px-1.5 py-0.5 rounded-full" style="background: rgba(255,255,255,0.04); color: #5a6a8a;">
+                  {{ a.stores?.length || 0 }}
+                </span>
+              </div>
+            </label>
+            <div 
+              v-if="!areasLoading && areas.length === 0"
+              class="p-4 text-center text-sm" style="color: #5a6a8a;"
+            >
+              暂无区数据
+            </div>
+          </div>
+          <div class="px-4 py-2 text-[11px]" style="border-top: 1px solid rgba(139,92,246,0.12); color: #5a6a8a;">
+            💡 未选中任何区 = 不按区筛选（全部显示）
+          </div>
+        </div>
+      </div>
         
       <!-- 表格门店筛选 -->
       <div class="relative" @click.stop>
@@ -448,10 +652,10 @@ onUnmounted(() => {
               @click="toggleAllStores"
               class="text-sm font-medium hover:opacity-80" style="color: #00ffff;"
             >
-              {{ selectedStores.length === tableData.length ? '取消全选' : '全选' }}
+              {{ selectedStores.length === (areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(s.storeName)).length : tableData.length) ? '取消全选' : '全选' }}
             </button>
             <span class="text-xs" style="color: #5a6a8a;">
-              {{ filteredTableData.length }} / {{ tableData.length }}
+              {{ filteredTableData.length }} / {{ areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(s.storeName)).length : tableData.length }}
             </span>
           </div>
           <!-- 门店列表 -->
@@ -468,9 +672,18 @@ onUnmounted(() => {
                 class="w-4 h-4 rounded"
                 style="accent-color: #00ffff;"
               />
-              <span :style="store.storeName.includes('吉姆电竞') ? 'color: #00ffff; font-weight: 500;' : 'color: #8892a4;'">
-                {{ store.storeName }}
-              </span>
+              <div class="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
+                <span :style="store.storeName.includes('吉姆电竞') ? 'color: #00ffff; font-weight: 500;' : 'color: #8892a4;'">
+                  {{ store.storeName }}
+                </span>
+                <span 
+                  v-if="storeToAreaMap[store.storeName]"
+                  class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
+                  style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
+                >
+                  {{ storeToAreaMap[store.storeName].areaName }}
+                </span>
+              </div>
             </label>
             <div 
               v-if="filteredTableData.length === 0"
@@ -484,6 +697,9 @@ onUnmounted(() => {
         
       <div class="text-sm ml-auto" style="color: #5a6a8a;">
         {{ displayStores.length }} / {{ tableData.length }} 家门店
+        <span v-if="selectedAreas.length > 0" class="ml-2" style="color: #a78bfa;">
+          · 已按区筛选
+        </span>
       </div>
     </div>
 
@@ -511,7 +727,18 @@ onUnmounted(() => {
           <tbody>
             <tr v-for="(store, idx) in jimuStores" :key="store.storeName" class="border-b border-white/5 hover:bg-cyan-500/5 transition-colors">
               <td class="p-3 text-center text-xs" style="color: #4a5a7a;">{{ idx + 1 }}</td>
-              <td class="p-3 font-medium" style="color: #e0e0e0;">{{ store.storeName }}</td>
+              <td class="p-3 font-medium">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span style="color: #e0e0e0;">{{ store.storeName }}</span>
+                  <span 
+                    v-if="storeToAreaMap[store.storeName]"
+                    class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
+                    style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
+                  >
+                    {{ storeToAreaMap[store.storeName].areaName }}
+                  </span>
+                </div>
+              </td>
               <td class="p-3 text-center" v-for="hour in timeColumns" :key="hour">
                 <div class="text-xs mb-1" style="color: #5a6a8a;">{{ getDisplayData(store, hour).online }}/{{ getDisplayData(store, hour).total }}</div>
                 <div :class="getPercentageClass(getDisplayData(store, hour).percentage)">
@@ -544,7 +771,18 @@ onUnmounted(() => {
           <tbody>
             <tr v-for="(store, idx) in otherStores" :key="store.storeName" class="border-b border-white/5 hover:bg-cyan-500/5 transition-colors">
               <td class="p-3 text-center text-xs" style="color: #4a5a7a;">{{ idx + 1 }}</td>
-              <td class="p-3" style="color: #8892a4;">{{ store.storeName }}</td>
+              <td class="p-3">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span style="color: #8892a4;">{{ store.storeName }}</span>
+                  <span 
+                    v-if="storeToAreaMap[store.storeName]"
+                    class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
+                    style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
+                  >
+                    {{ storeToAreaMap[store.storeName].areaName }}
+                  </span>
+                </div>
+              </td>
               <td class="p-3 text-center" v-for="hour in timeColumns" :key="hour">
                 <div class="text-xs mb-1" style="color: #5a6a8a;">{{ getDisplayData(store, hour).online }}/{{ getDisplayData(store, hour).total }}</div>
                 <div :class="getPercentageClass(getDisplayData(store, hour).percentage)">
@@ -600,10 +838,14 @@ onUnmounted(() => {
                 @click="toggleAllChartStores"
                 class="text-sm font-medium hover:opacity-80" style="color: #00ffff;"
               >
-                {{ selectedChartStores.length === tableData.length ? '取消全选' : '全选' }}
+                {{ (() => {
+                  const allowed = areaAllowedStoreNames
+                  const pool = allowed ? tableData.filter(s => allowed.has(s.storeName)) : tableData
+                  return pool.length > 0 && pool.every(s => selectedChartStores.includes(s.storeName)) ? '取消全选' : '全选'
+                })() }}
               </button>
               <span class="text-xs" style="color: #5a6a8a;">
-                {{ filteredTableDataForChart.length }} / {{ tableData.length }}
+                {{ filteredTableDataForChart.length }} / {{ areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(s.storeName)).length : tableData.length }}
               </span>
             </div>
             <!-- 门店列表 -->
@@ -620,9 +862,18 @@ onUnmounted(() => {
                   class="w-4 h-4 rounded"
                   style="accent-color: #00ffff;"
                 />
-                <span :style="store.storeName.includes('吉姆电竞') ? 'color: #00ffff; font-weight: 500;' : 'color: #8892a4;'">
-                  {{ store.storeName }}
-                </span>
+                <div class="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
+                  <span :style="store.storeName.includes('吉姆电竞') ? 'color: #00ffff; font-weight: 500;' : 'color: #8892a4;'">
+                    {{ store.storeName }}
+                  </span>
+                  <span 
+                    v-if="storeToAreaMap[store.storeName]"
+                    class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
+                    style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
+                  >
+                    {{ storeToAreaMap[store.storeName].areaName }}
+                  </span>
+                </div>
               </label>
               <div 
                 v-if="filteredTableDataForChart.length === 0"

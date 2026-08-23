@@ -16,7 +16,11 @@ export class StoreOrderService {
    * 获取门店排序配置列表
    */
   async getStoreOrderList(): Promise<StoreOrder[]> {
-    return this.storeOrderModel.find().sort({ order: 1 }).exec();
+    return this.storeOrderModel
+      .find()
+      .sort({ order: 1 })
+      .populate('areaId', '_id name')
+      .exec();
   }
 
   /**
