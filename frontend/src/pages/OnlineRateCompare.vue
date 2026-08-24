@@ -19,12 +19,14 @@ const showAreaFilter = ref(false)
 const selectedAreas = ref([]) // 选中的区ID数组；空数组表示不按区筛选（全部区）
 const areaFilterButton = ref(null)
 const areaFilterDropdown = ref(null)
-// 门店名 → 区信息映射 { areaId, areaName }
+// 门店名归一化：去除所有空白字符，解决 "吉姆电竞- 尖" vs "吉姆电竞-尖" 不一致
+const normalizeName = (name) => (name || '').replace(/\s+/g, '')
+// 门店名 → 区信息映射 { areaId, areaName }（key 为归一化名）
 const storeToAreaMap = computed(() => {
   const m = {}
   for (const a of areas.value) {
     for (const s of (a.stores || [])) {
-      m[s.storeName] = { areaId: a._id, areaName: a.name }
+      m[normalizeName(s.storeName)] = { areaId: a._id, areaName: a.name }
     }
   }
   return m
@@ -35,7 +37,7 @@ const areaAllowedStoreNames = computed(() => {
   const set = new Set()
   for (const aid of selectedAreas.value) {
     const a = areas.value.find(x => x._id === aid)
-    if (a) for (const s of (a.stores || [])) set.add(s.storeName)
+    if (a) for (const s of (a.stores || [])) set.add(normalizeName(s.storeName))
   }
   return set
 })
@@ -43,7 +45,7 @@ const areaAllowedStoreNames = computed(() => {
 const isStoreAllowedByArea = (storeName) => {
   const allowed = areaAllowedStoreNames.value
   if (!allowed) return true
-  return allowed.has(storeName)
+  return allowed.has(normalizeName(storeName))
 }
 // 拉取区列表
 const fetchAreas = async () => {
@@ -78,10 +80,10 @@ const clipGhostSelections = () => {
   const allowed = areaAllowedStoreNames.value
   if (!allowed) return // 不筛选时不裁剪
   const clip = (list) => {
-    const next = list.value.filter(n => allowed.has(n))
+    const next = list.value.filter(n => allowed.has(normalizeName(n)))
     if (next.length === 0 && tableData.value.length > 0) {
       // 回补：在允许范围内尽可能选
-      return tableData.value.filter(s => allowed.has(s.storeName)).map(s => s.storeName)
+      return tableData.value.filter(s => allowed.has(normalizeName(s.storeName))).map(s => s.storeName)
     }
     return next
   }
@@ -111,7 +113,7 @@ const filteredTableData = computed(() => {
   let list = tableData.value
   // 区筛选
   const allowed = areaAllowedStoreNames.value
-  if (allowed) list = list.filter(s => allowed.has(s.storeName))
+  if (allowed) list = list.filter(s => allowed.has(normalizeName(s.storeName)))
   // 搜索
   if (storeSearchQuery.value) {
     const q = storeSearchQuery.value.toLowerCase()
@@ -125,7 +127,7 @@ const filteredTableDataForChart = computed(() => {
   let list = tableData.value
   // 区筛选
   const allowed = areaAllowedStoreNames.value
-  if (allowed) list = list.filter(s => allowed.has(s.storeName))
+  if (allowed) list = list.filter(s => allowed.has(normalizeName(s.storeName)))
   // 搜索
   if (chartSearchQuery.value) {
     const q = chartSearchQuery.value.toLowerCase()
@@ -188,7 +190,7 @@ const fetchData = async () => {
       if (selectedStores.value.length === 0) {
         const allowed = areaAllowedStoreNames.value
         if (allowed) {
-          selectedStores.value = tableData.value.filter(s => allowed.has(s.storeName)).map(s => s.storeName)
+          selectedStores.value = tableData.value.filter(s => allowed.has(normalizeName(s.storeName))).map(s => s.storeName)
         } else {
           selectedStores.value = tableData.value.map(store => store.storeName)
         }
@@ -197,7 +199,7 @@ const fetchData = async () => {
       if (selectedChartStores.value.length === 0) {
         const allowed = areaAllowedStoreNames.value
         let pool = tableData.value
-        if (allowed) pool = pool.filter(s => allowed.has(s.storeName))
+        if (allowed) pool = pool.filter(s => allowed.has(normalizeName(s.storeName)))
         const jimu = pool
           .filter(store => store.storeName.includes('吉姆电竞'))
           .map(store => store.storeName)
@@ -229,7 +231,7 @@ const toggleStore = (storeName) => {
 const toggleAllStores = () => {
   const allowed = areaAllowedStoreNames.value
   const pool = allowed
-    ? tableData.value.filter(s => allowed.has(s.storeName)).map(s => s.storeName)
+    ? tableData.value.filter(s => allowed.has(normalizeName(s.storeName))).map(s => s.storeName)
     : tableData.value.map(s => s.storeName)
   const allSelectedInPool = pool.length > 0 && pool.every(n => selectedStores.value.includes(n))
   if (allSelectedInPool) {
@@ -256,7 +258,7 @@ const toggleChartStore = (storeName) => {
 const toggleAllChartStores = () => {
   const allowed = areaAllowedStoreNames.value
   const pool = allowed
-    ? tableData.value.filter(s => allowed.has(s.storeName)).map(s => s.storeName)
+    ? tableData.value.filter(s => allowed.has(normalizeName(s.storeName))).map(s => s.storeName)
     : tableData.value.map(s => s.storeName)
   const allSelectedInPool = pool.length > 0 && pool.every(n => selectedChartStores.value.includes(n))
   if (allSelectedInPool) {
@@ -531,7 +533,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Filter Area -->
-    <div class="glass-card p-5 flex gap-4 items-center flex-wrap">
+    <div class="glass-card p-5 flex gap-4 items-center flex-wrap relative z-20">
       <div class="flex items-center gap-3">
         <label class="text-sm font-medium" style="color: #6b7fa3;">日期</label>
         <input 
@@ -548,7 +550,7 @@ onUnmounted(() => {
       <div class="relative" @click.stop>
         <button 
           ref="areaFilterButton"
-          @click.stop="showAreaFilter = !showAreaFilter"
+          @click.stop="showAreaFilter = !showAreaFilter; showStoreFilter = false; showChartFilter = false"
           class="sci-btn-ghost px-4 py-2 text-sm"
         >
           <span>区筛选</span>
@@ -625,7 +627,7 @@ onUnmounted(() => {
       <div class="relative" @click.stop>
         <button 
           ref="storeFilterButton"
-          @click.stop="showStoreFilter = !showStoreFilter"
+          @click.stop="showStoreFilter = !showStoreFilter; showAreaFilter = false; showChartFilter = false"
           class="sci-btn-ghost px-4 py-2 text-sm"
         >
           <span>表格门店</span>
@@ -652,10 +654,10 @@ onUnmounted(() => {
               @click="toggleAllStores"
               class="text-sm font-medium hover:opacity-80" style="color: #00ffff;"
             >
-              {{ selectedStores.length === (areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(s.storeName)).length : tableData.length) ? '取消全选' : '全选' }}
+              {{ selectedStores.length === (areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(normalizeName(s.storeName))).length : tableData.length) ? '取消全选' : '全选' }}
             </button>
             <span class="text-xs" style="color: #5a6a8a;">
-              {{ filteredTableData.length }} / {{ areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(s.storeName)).length : tableData.length }}
+              {{ filteredTableData.length }} / {{ areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(normalizeName(s.storeName))).length : tableData.length }}
             </span>
           </div>
           <!-- 门店列表 -->
@@ -677,11 +679,11 @@ onUnmounted(() => {
                   {{ store.storeName }}
                 </span>
                 <span 
-                  v-if="storeToAreaMap[store.storeName]"
+                  v-if="storeToAreaMap[normalizeName(store.storeName)]"
                   class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
                   style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
                 >
-                  {{ storeToAreaMap[store.storeName].areaName }}
+                  {{ storeToAreaMap[normalizeName(store.storeName)].areaName }}
                 </span>
               </div>
             </label>
@@ -731,11 +733,11 @@ onUnmounted(() => {
                 <div class="flex items-center gap-2 flex-wrap">
                   <span style="color: #e0e0e0;">{{ store.storeName }}</span>
                   <span 
-                    v-if="storeToAreaMap[store.storeName]"
+                    v-if="storeToAreaMap[normalizeName(store.storeName)]"
                     class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
                     style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
                   >
-                    {{ storeToAreaMap[store.storeName].areaName }}
+                    {{ storeToAreaMap[normalizeName(store.storeName)].areaName }}
                   </span>
                 </div>
               </td>
@@ -775,11 +777,11 @@ onUnmounted(() => {
                 <div class="flex items-center gap-2 flex-wrap">
                   <span style="color: #8892a4;">{{ store.storeName }}</span>
                   <span 
-                    v-if="storeToAreaMap[store.storeName]"
+                    v-if="storeToAreaMap[normalizeName(store.storeName)]"
                     class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
                     style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
                   >
-                    {{ storeToAreaMap[store.storeName].areaName }}
+                    {{ storeToAreaMap[normalizeName(store.storeName)].areaName }}
                   </span>
                 </div>
               </td>
@@ -811,7 +813,7 @@ onUnmounted(() => {
         <div class="relative">
           <button 
             ref="chartFilterButton"
-            @click="showChartFilter = !showChartFilter"
+            @click="showChartFilter = !showChartFilter; showAreaFilter = false; showStoreFilter = false"
             class="sci-btn-ghost px-4 py-2 text-sm"
           >
             <span>图表门店</span>
@@ -840,12 +842,12 @@ onUnmounted(() => {
               >
                 {{ (() => {
                   const allowed = areaAllowedStoreNames
-                  const pool = allowed ? tableData.filter(s => allowed.has(s.storeName)) : tableData
+                  const pool = allowed ? tableData.filter(s => allowed.has(normalizeName(s.storeName))) : tableData
                   return pool.length > 0 && pool.every(s => selectedChartStores.includes(s.storeName)) ? '取消全选' : '全选'
                 })() }}
               </button>
               <span class="text-xs" style="color: #5a6a8a;">
-                {{ filteredTableDataForChart.length }} / {{ areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(s.storeName)).length : tableData.length }}
+                {{ filteredTableDataForChart.length }} / {{ areaAllowedStoreNames ? tableData.filter(s => areaAllowedStoreNames.has(normalizeName(s.storeName))).length : tableData.length }}
               </span>
             </div>
             <!-- 门店列表 -->
@@ -867,11 +869,11 @@ onUnmounted(() => {
                     {{ store.storeName }}
                   </span>
                   <span 
-                    v-if="storeToAreaMap[store.storeName]"
+                    v-if="storeToAreaMap[normalizeName(store.storeName)]"
                     class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
                     style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
                   >
-                    {{ storeToAreaMap[store.storeName].areaName }}
+                    {{ storeToAreaMap[normalizeName(store.storeName)].areaName }}
                   </span>
                 </div>
               </label>

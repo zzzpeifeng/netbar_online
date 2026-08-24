@@ -9,12 +9,21 @@
     <!-- Filter Area -->
     <div class="px-4 py-3">
       <div class="flex gap-2 items-center">
-        <input 
+        <input
           type="date"
           v-model="selectedDate"
           style="width: 130px; flex-shrink: 0;"
           class="sci-input px-2 py-2 rounded-xl text-sm"
         />
+        <button
+          @click="showAreaFilter = true"
+          class="sci-btn-ghost flex-shrink-0 px-3 py-2 rounded-xl text-sm flex items-center gap-1 whitespace-nowrap"
+        >
+          <span class="text-xs">区</span>
+          <span class="px-1 py-0.5 rounded-full text-xs" :style="selectedAreas.length === 0 ? { background: 'rgba(139,92,246,0.12)', color: '#a78bfa' } : { background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }">
+            {{ selectedAreas.length === 0 ? '全部' : selectedAreas.length }}
+          </span>
+        </button>
         <button 
           @click="showFilter = true"
           class="sci-btn-ghost flex-shrink-0 px-3 py-2 rounded-xl text-sm flex items-center gap-1 whitespace-nowrap"
@@ -128,23 +137,30 @@
           </div>
 
           <!-- Store List -->
-          <label 
-            v-for="store in filteredStores" 
+          <label
+            v-for="store in filteredStores"
             :key="store"
             class="flex items-center gap-3 py-3 cursor-pointer" style="border-bottom: 1px solid rgba(255,255,255,0.03);"
           >
-            <input 
+            <input
               type="checkbox"
               :checked="selectedStores.includes(store)"
               @change="toggleStore(store)"
               class="w-5 h-5"
               style="accent-color: #00ffff;"
             />
-            <span 
+            <span
               class="text-sm"
               :class="store.includes('吉姆电竞') ? 'text-cyan-400 font-medium' : 'text-slate-400'"
             >
               {{ store }}
+            </span>
+            <span
+              v-if="storeToAreaMap[store]"
+              class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0"
+              style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
+            >
+              {{ storeToAreaMap[store].areaName }}
             </span>
           </label>
 
@@ -165,6 +181,92 @@
         </div>
       </div>
     </div>
+
+    <!-- Area Filter Modal -->
+    <div
+      v-if="showAreaFilter"
+      class="fixed inset-0 z-50 flex items-end"
+    >
+      <!-- Overlay -->
+      <div
+        class="absolute inset-0" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);"
+        @click="showAreaFilter = false"
+      ></div>
+
+      <!-- Modal Content -->
+      <div class="relative rounded-t-3xl w-full max-h-[70vh] flex flex-col z-10" style="background: rgba(15,22,45,0.98); backdrop-filter: blur(20px);">
+        <!-- Handle -->
+        <div class="w-9 h-1 rounded-full mx-auto mt-3 mb-4 flex-shrink-0" style="background: rgba(255,255,255,0.15);"></div>
+
+        <div class="flex-1 overflow-y-auto px-5 pb-8">
+          <h3 class="text-lg font-semibold mb-3" style="color: #e0e0e0;">选择区</h3>
+
+          <!-- Loading -->
+          <div v-if="areasLoading" class="py-8 flex items-center justify-center gap-2 text-sm" style="color: #5a6a8a;">
+            <div class="w-4 h-4 border-2 border-purple-500 border-b-transparent rounded-full animate-spin"></div>加载区...
+          </div>
+
+          <template v-else>
+            <!-- Select All -->
+            <div class="flex justify-between items-center py-2.5 mb-2" style="border-bottom: 1px solid rgba(139,92,246,0.08);">
+              <span class="text-sm font-medium" style="color: #e0e0e0;">
+                {{ selectedAreas.length === areas.length && areas.length > 0 ? '取消全选（=不筛选）' : '全选所有区' }}
+              </span>
+              <button
+                @click="toggleAllAreas"
+                class="w-11 h-6 rounded-full transition-colors relative"
+                :style="selectedAreas.length === areas.length && areas.length > 0 ? { background: 'rgba(139,92,246,0.3)' } : { background: 'rgba(255,255,255,0.1)' }"
+              >
+                <div
+                  class="w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all"
+                  :class="selectedAreas.length === areas.length && areas.length > 0 ? 'right-0.5' : 'left-0.5'"
+                ></div>
+              </button>
+            </div>
+
+            <!-- Area List -->
+            <label
+              v-for="a in areas"
+              :key="a._id"
+              class="flex items-center gap-3 py-3 cursor-pointer" style="border-bottom: 1px solid rgba(255,255,255,0.03);"
+            >
+              <input
+                type="checkbox"
+                :checked="selectedAreas.includes(a._id)"
+                @change="toggleArea(a._id)"
+                class="w-5 h-5"
+                style="accent-color: #8b5cf6;"
+              />
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span class="text-sm truncate" :style="a.isVirtual ? 'color: #ffaa00;' : 'color: #c8d0e0;'">
+                  {{ a.name }}
+                </span>
+                <span class="px-1.5 py-0.5 rounded-full text-[11px] shrink-0" style="background: rgba(255,255,255,0.04); color: #5a6a8a;">
+                  {{ a.stores?.length || 0 }}
+                </span>
+              </div>
+            </label>
+
+            <div v-if="areas.length === 0" class="py-8 text-center text-sm" style="color: #5a6a8a;">
+              暂无区数据，请在设置页面中创建
+            </div>
+
+            <!-- Tip -->
+            <div class="mt-3 px-1 py-1 text-[11px]" style="color: #5a6a8a;">
+              未选中任何区 = 不按区筛选（全部显示）
+            </div>
+
+            <!-- Confirm Button -->
+            <button
+              @click="showAreaFilter = false"
+              class="w-full py-3.5 rounded-xl text-sm font-medium mt-4" style="background: rgba(139,92,246,0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.2);"
+            >
+              确认 ({{ selectedAreas.length === 0 ? '全部' : selectedAreas.length + '/' + areas.length }})
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -172,6 +274,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { getAvailableDates, getOnlineRateData, getStoreOrder } from '../api/onlineRate'
 import { reportVisit } from '../api/visitLog'
+import { getAreaList } from '../api/area'
 
 export default {
   setup() {
@@ -184,6 +287,33 @@ export default {
     const searchQuery = ref('')
     const storeOrderList = ref([])
     const timeColumns = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+
+    // ========== 区筛选 ==========
+    const areas = ref([])
+    const areasLoading = ref(false)
+    const showAreaFilter = ref(false)
+    const selectedAreas = ref([]) // 空数组 = 不按区筛选（全部区）
+
+    // 门店名 → 区信息映射 { areaId, areaName }
+    const storeToAreaMap = computed(() => {
+      const m = {}
+      for (const a of areas.value) {
+        for (const s of (a.stores || [])) {
+          m[s.storeName] = { areaId: a._id, areaName: a.name }
+        }
+      }
+      return m
+    })
+    // 选中区所包含的门店名称集合（空选中表示全部区 → null）
+    const areaAllowedStoreNames = computed(() => {
+      if (selectedAreas.value.length === 0) return null
+      const set = new Set()
+      for (const aid of selectedAreas.value) {
+        const a = areas.value.find(x => x._id === aid)
+        if (a) for (const s of (a.stores || [])) set.add(s.storeName)
+      }
+      return set
+    })
 
     // 获取有数据的日期列表
     const fetchDates = async () => {
@@ -199,12 +329,59 @@ export default {
       }
     }
 
+    // 拉取区列表
+    const fetchAreas = async () => {
+      areasLoading.value = true
+      try {
+        const res = await getAreaList()
+        areas.value = res?.data || []
+      } catch (e) {
+        console.error('拉取区列表失败:', e)
+        areas.value = []
+      } finally {
+        areasLoading.value = false
+      }
+    }
+
+    // 区筛选：切换区选中
+    const toggleArea = (areaId) => {
+      const i = selectedAreas.value.indexOf(areaId)
+      if (i > -1) selectedAreas.value.splice(i, 1)
+      else selectedAreas.value.push(areaId)
+    }
+    // 区筛选：全选/取消全选 → 取消全选等价于"不按区筛选（空）"
+    const toggleAllAreas = () => {
+      if (selectedAreas.value.length === areas.value.length) {
+        selectedAreas.value = []
+      } else {
+        selectedAreas.value = areas.value.map(a => a._id)
+      }
+    }
+    // 幽灵选中裁剪：当区筛选变化时，把 selectedStores 中不在允许范围内的门店移除
+    // 若移除后为空 → 自动回补（在允许范围内全选），避免空选中导致表格空白
+    const clipGhostSelections = () => {
+      const allowed = areaAllowedStoreNames.value
+      if (!allowed) return // 不筛选时不裁剪
+      const next = selectedStores.value.filter(n => allowed.has(n))
+      if (next.length === 0 && tableData.value.length > 0) {
+        selectedStores.value = tableData.value
+          .filter(s => allowed.has(s.storeName))
+          .map(s => s.storeName)
+      } else {
+        selectedStores.value = next
+      }
+    }
+
     // 获取数据
     const fetchData = async () => {
       if (!selectedDate.value) return
       loading.value = true
       try {
-        const res = await getOnlineRateData(selectedDate.value)
+        // 并行拉取：上座率数据 + 区列表
+        const [res] = await Promise.all([
+          getOnlineRateData(selectedDate.value),
+          fetchAreas().catch(e => { console.warn('拉取区列表失败，继续', e); return null })
+        ])
         if (res.data && res.data.length > 0) {
           // 获取排序配置
           let orderMap = {}
@@ -226,10 +403,20 @@ export default {
             const orderB = orderMap[b.storeName] || 999
             return orderA - orderB
           })
-          
-          // 默认全选
+
+          // 区筛选幽灵裁剪（基于新数据）
+          clipGhostSelections()
+
+          // 默认全选（仅在未手动选过时，考虑区筛选范围）
           if (selectedStores.value.length === 0) {
-            selectedStores.value = tableData.value.map(store => store.storeName)
+            const allowed = areaAllowedStoreNames.value
+            if (allowed) {
+              selectedStores.value = tableData.value
+                .filter(s => allowed.has(s.storeName))
+                .map(s => s.storeName)
+            } else {
+              selectedStores.value = tableData.value.map(store => store.storeName)
+            }
           }
         }
       } catch (error) {
@@ -239,22 +426,28 @@ export default {
       }
     }
 
-    // 门店列表
+    // 门店列表（叠加区筛选范围）
     const storeList = computed(() => {
-      return tableData.value.map(store => store.storeName)
+      const allowed = areaAllowedStoreNames.value
+      const pool = allowed
+        ? tableData.value.filter(s => allowed.has(s.storeName))
+        : tableData.value
+      return pool.map(store => store.storeName)
     })
 
-    // 过滤后的门店列表
+    // 过滤后的门店列表（搜索 + 区筛选）
     const filteredStores = computed(() => {
       if (!searchQuery.value) return storeList.value
       const query = searchQuery.value.toLowerCase()
       return storeList.value.filter(name => name.toLowerCase().includes(query))
     })
 
-    // 显示的门店
+    // 显示的门店（区筛选 + 门店选中）
     const displayStores = computed(() => {
-      return tableData.value.filter(store => 
-        selectedStores.value.includes(store.storeName)
+      const allowed = areaAllowedStoreNames.value
+      return tableData.value.filter(store =>
+        selectedStores.value.includes(store.storeName) &&
+        (!allowed || allowed.has(store.storeName))
       )
     })
 
@@ -308,14 +501,24 @@ export default {
       }
     }
 
-    // 全选/取消全选
+    // 全选/取消全选（考虑区筛选范围）
     const toggleAll = () => {
-      if (selectedStores.value.length === storeList.value.length) {
-        selectedStores.value = []
+      const pool = storeList.value
+      const allSelected = pool.length > 0 && pool.every(n => selectedStores.value.includes(n))
+      if (allSelected) {
+        // 取消全选：只移除 pool 里的那些
+        selectedStores.value = selectedStores.value.filter(n => !pool.includes(n))
       } else {
-        selectedStores.value = [...storeList.value]
+        // 全选：合并入 pool
+        const set = new Set([...selectedStores.value, ...pool])
+        selectedStores.value = [...set]
       }
     }
+
+    // 区筛选变化时裁剪幽灵选中
+    watch(selectedAreas, () => {
+      clipGhostSelections()
+    }, { deep: true })
 
     // 监听日期变化
     watch(() => selectedDate.value, (newDate) => {
@@ -344,7 +547,15 @@ export default {
       toggleStore,
       toggleAll,
       getDisplayData,
-      getPercentageClass
+      getPercentageClass,
+      // 区筛选
+      areas,
+      areasLoading,
+      showAreaFilter,
+      selectedAreas,
+      storeToAreaMap,
+      toggleArea,
+      toggleAllAreas
     }
   }
 }
