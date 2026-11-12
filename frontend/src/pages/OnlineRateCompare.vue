@@ -717,29 +717,38 @@ onUnmounted(() => {
     </div>
 
     <!-- Data Table -->
+    <!-- 单表 + table-layout:fixed + colgroup 固定列宽，保证表头/数据/分组列始终对齐（消除多表列宽错位） -->
     <div v-else class="glass-card overflow-hidden">
-      <!-- Frozen Section (吉姆电竞门店) -->
-      <div v-if="jimuStores.length > 0" style="border-bottom: 1px solid rgba(0,255,255,0.08);">
-        <table class="w-full text-sm sci-table">
-          <thead>
-            <tr style="background: rgba(0,255,255,0.04);">
+      <div class="overflow-auto" style="max-height: calc(100vh - 420px);">
+        <table class="w-full text-sm sci-table compare-table">
+          <colgroup>
+            <col style="width: 56px;" />
+            <col style="width: 200px;" />
+            <col v-for="hour in timeColumns" :key="hour" />
+            <col style="width: 84px;" />
+          </colgroup>
+          <thead class="sticky top-0 z-10" style="background: rgba(15,20,40,0.96); backdrop-filter: blur(10px);">
+            <tr>
               <th class="p-3 text-center font-medium">排名</th>
               <th class="p-3 text-left font-medium">门店名称</th>
-              <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">
-                {{ hour }}:00
-              </th>
+              <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">{{ hour }}:00</th>
               <th class="p-3 text-center font-medium">平均</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(store, idx) in jimuStores" :key="store.storeName" class="border-b border-white/5 hover:bg-cyan-500/5 transition-colors">
+            <!-- 吉姆电竞分组（置顶 + 淡青色高亮） -->
+            <tr
+              v-for="(store, idx) in jimuStores"
+              :key="'j-' + store.storeName"
+              class="jimu-group border-b border-white/5 hover:bg-cyan-500/5 transition-colors"
+            >
               <td class="p-3 text-center text-xs" style="color: #4a5a7a;">{{ idx + 1 }}</td>
               <td class="p-3 font-medium">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span style="color: #e0e0e0;">{{ store.storeName }}</span>
-                  <span 
+                  <span
                     v-if="storeToAreaMap[normalizeName(store.storeName)]"
-                    class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
+                    class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0"
                     style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
                   >
                     {{ storeToAreaMap[normalizeName(store.storeName)].areaName }}
@@ -758,32 +767,19 @@ onUnmounted(() => {
                 </span>
               </td>
             </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Scrollable Section (Other stores) -->
-      <div class="overflow-auto" style="max-height: calc(100vh - 450px);">
-        <table class="w-full text-sm sci-table">
-          <thead class="sticky top-0 z-10 shadow-sm" style="background: rgba(15,20,40,0.95); backdrop-filter: blur(10px);">
-            <tr>
-              <th class="p-3 text-center font-medium">排名</th>
-              <th class="p-3 text-left font-medium">门店名称</th>
-              <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">
-                {{ hour }}:00
-              </th>
-              <th class="p-3 text-center font-medium">平均</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(store, idx) in otherStores" :key="store.storeName" class="border-b border-white/5 hover:bg-cyan-500/5 transition-colors">
+            <!-- 其他门店分组 -->
+            <tr
+              v-for="(store, idx) in otherStores"
+              :key="'o-' + store.storeName"
+              class="border-b border-white/5 hover:bg-cyan-500/5 transition-colors"
+            >
               <td class="p-3 text-center text-xs" style="color: #4a5a7a;">{{ idx + 1 }}</td>
               <td class="p-3">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span style="color: #8892a4;">{{ store.storeName }}</span>
-                  <span 
+                  <span
                     v-if="storeToAreaMap[normalizeName(store.storeName)]"
-                    class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0" 
+                    class="px-1.5 py-0.5 rounded-md text-[10px] shrink-0"
                     style="background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);"
                   >
                     {{ storeToAreaMap[normalizeName(store.storeName)].areaName }}

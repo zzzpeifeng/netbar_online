@@ -96,6 +96,14 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
+/* 对比表：固定列宽，确保表头/数据/吉姆电竞分组与其他门店分组始终对齐 */
+.compare-table {
+  table-layout: fixed;
+}
+.compare-table .jimu-group > td {
+  background: rgba(0, 255, 255, 0.03);
+}
+
 /* 滚动条 */
 ::-webkit-scrollbar {
   width: 6px;
