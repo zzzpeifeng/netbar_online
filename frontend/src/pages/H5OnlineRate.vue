@@ -286,7 +286,14 @@ export default {
     const selectedStores = ref([])
     const searchQuery = ref('')
     const storeOrderList = ref([])
-    const timeColumns = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    // 时间列定义：根据接口返回数据动态生成，避免写死漏列/错位
+    const timeColumns = computed(() => {
+      const set = new Set()
+      for (const s of tableData.value) {
+        if (s.timeSlots) Object.keys(s.timeSlots).forEach(k => set.add(k))
+      }
+      return Array.from(set).sort()
+    })
 
     // ========== 区筛选 ==========
     const areas = ref([])
@@ -472,8 +479,8 @@ export default {
 
     // 获取显示数据
     const getDisplayData = (store, hour) => {
-      const timeKey = `${hour.toString().padStart(2, '0')}:00`
-      const data = store.timeSlots?.[timeKey]
+      // hour 已是动态时段字符串（如 "10:00"），直接作为 timeKey 取数
+      const data = store.timeSlots?.[hour]
       
       if (!data) return { online: 0, total: 0, percentage: 0 }
         

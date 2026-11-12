@@ -23,8 +23,10 @@ export class OnlineRateService {
    * 当天数据：当前时间之前显示真实数据，之后显示 0/0
    */
   async getOnlineRateData(date: string): Promise<any> {
-    const today = new Date().toISOString().split('T')[0];
     const now = new Date();
+    // 使用本地日期（非 UTC），与下方 currentHour（本地小时）保持一致，
+    // 避免服务器非 UTC 时区时“当天未来时段清零”边界错位一天
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const currentHour = now.getHours();
     
     // 获取指定日期的所有文档
