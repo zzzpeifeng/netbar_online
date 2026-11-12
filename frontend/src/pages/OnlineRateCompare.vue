@@ -717,9 +717,12 @@ onUnmounted(() => {
     </div>
 
     <!-- Data Table -->
-    <!-- 单表 + table-layout:fixed + colgroup 固定列宽，保证表头/数据/分组列始终对齐（消除多表列宽错位） -->
+    <!-- 两段式：吉姆电竞冻结置顶（不滚动），其他门店可滚动。
+         两段均用 table-layout:fixed + 相同 colgroup 保证列宽严格一致；
+         scrollbar-gutter:stable 让两段预留相同滚动槽位，消除滚动条导致的列错位。 -->
     <div v-else class="glass-card overflow-hidden">
-      <div class="overflow-auto" style="max-height: calc(100vh - 420px);">
+      <!-- 冻结段：吉姆电竞（始终置顶） -->
+      <div v-if="jimuStores.length > 0" style="border-bottom: 1px solid rgba(0,255,255,0.08); overflow-y: auto; scrollbar-gutter: stable;">
         <table class="w-full text-sm sci-table compare-table">
           <colgroup>
             <col style="width: 56px;" />
@@ -727,8 +730,8 @@ onUnmounted(() => {
             <col v-for="hour in timeColumns" :key="hour" />
             <col style="width: 84px;" />
           </colgroup>
-          <thead class="sticky top-0 z-10" style="background: rgba(15,20,40,0.96); backdrop-filter: blur(10px);">
-            <tr>
+          <thead>
+            <tr style="background: rgba(0,255,255,0.04);">
               <th class="p-3 text-center font-medium">排名</th>
               <th class="p-3 text-left font-medium">门店名称</th>
               <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">{{ hour }}:00</th>
@@ -736,7 +739,6 @@ onUnmounted(() => {
             </tr>
           </thead>
           <tbody>
-            <!-- 吉姆电竞分组（置顶 + 淡青色高亮） -->
             <tr
               v-for="(store, idx) in jimuStores"
               :key="'j-' + store.storeName"
@@ -767,7 +769,28 @@ onUnmounted(() => {
                 </span>
               </td>
             </tr>
-            <!-- 其他门店分组 -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 滚动段：其他门店（自由拖动） -->
+      <div class="overflow-auto" style="max-height: calc(100vh - 420px); scrollbar-gutter: stable;">
+        <table class="w-full text-sm sci-table compare-table">
+          <colgroup>
+            <col style="width: 56px;" />
+            <col style="width: 200px;" />
+            <col v-for="hour in timeColumns" :key="hour" />
+            <col style="width: 84px;" />
+          </colgroup>
+          <thead class="sticky top-0 z-10" style="background: rgba(15,20,40,0.96); backdrop-filter: blur(10px);">
+            <tr>
+              <th class="p-3 text-center font-medium">排名</th>
+              <th class="p-3 text-left font-medium">门店名称</th>
+              <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">{{ hour }}:00</th>
+              <th class="p-3 text-center font-medium">平均</th>
+            </tr>
+          </thead>
+          <tbody>
             <tr
               v-for="(store, idx) in otherStores"
               :key="'o-' + store.storeName"
