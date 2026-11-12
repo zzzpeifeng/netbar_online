@@ -322,21 +322,14 @@ const chartDisplayStores = computed(() => {
   )
 })
 
-// 时间列定义：根据接口返回数据动态生成（取所有门店 timeSlots 的 key 并集并排序）
-// 后端实际时段为 10:00-23:00，写死 12:00-23:00 会漏列、且平均列口径错位（“时间对不上”）
-// 动态生成可自适应后端营业时段变化
-const timeColumns = computed(() => {
-  const set = new Set()
-  for (const s of tableData.value) {
-    if (s.timeSlots) Object.keys(s.timeSlots).forEach(k => set.add(k))
-  }
-  return Array.from(set).sort()
-})
+// 时间列定义：客户只需中午 12:00 到晚上 23:00 的数据（写死，不再动态）
+// 未到时间（如今天 12:00 之后）由后端置 0/0，前端缺失时段也兜底显示 0/0
+const timeColumns = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
 
 // 获取显示数据
 const getDisplayData = (store, hour) => {
-  // hour 已是动态时段字符串（如 "10:00"），直接作为 timeSlots 的 key
-  const data = store.timeSlots?.[hour]
+  const timeKey = `${hour.toString().padStart(2, '0')}:00`
+  const data = store.timeSlots?.[timeKey]
   
   if (!data) return { online: 0, total: 0, percentage: 0 }
     
@@ -356,12 +349,12 @@ const getPercentageClass = (percentage) => {
 
 // 计算平均上座率
 const getAverageRate = (store) => {
-  // 仅基于当前展示的时段列（timeColumns）计算平均，与表格可见列口径一致
-  const cols = timeColumns.value
+  // 仅基于展示的时段列（12:00-23:00）计算平均，与表格可见列口径一致
   let sum = 0
   let count = 0
-  for (const k of cols) {
-    const slot = (store.timeSlots || {})[k]
+  for (const hour of timeColumns) {
+    const timeKey = `${hour.toString().padStart(2, '0')}:00`
+    const slot = (store.timeSlots || {})[timeKey]
     if (slot && slot.percentage > 0) {
       sum += slot.percentage
       count++
@@ -428,11 +421,12 @@ const updateChart = async () => {
     return
   }
     
-  const finalTimeLabels = timeColumns.value
+  const finalTimeLabels = timeColumns.map(h => `${h}:00`)
     
   const series = chartDisplayStores.value.map(store => {
-    const data = timeColumns.value.map(hour => {
-      const slot = store.timeSlots?.[hour]
+    const data = timeColumns.map(hour => {
+      const timeKey = `${hour.toString().padStart(2, '0')}:00`
+      const slot = store.timeSlots?.[timeKey]
       return slot ? slot.percentage : 0
     })
         
@@ -732,7 +726,7 @@ onUnmounted(() => {
               <th class="p-3 text-center font-medium">排名</th>
               <th class="p-3 text-left font-medium">门店名称</th>
               <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">
-                {{ hour }}
+                {{ hour }}:00
               </th>
               <th class="p-3 text-center font-medium">平均</th>
             </tr>
@@ -776,7 +770,7 @@ onUnmounted(() => {
               <th class="p-3 text-center font-medium">排名</th>
               <th class="p-3 text-left font-medium">门店名称</th>
               <th class="p-3 text-center font-medium" v-for="hour in timeColumns" :key="hour">
-                {{ hour }}
+                {{ hour }}:00
               </th>
               <th class="p-3 text-center font-medium">平均</th>
             </tr>
